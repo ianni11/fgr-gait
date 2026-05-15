@@ -119,6 +119,8 @@ export default function Tracker({ user, onReportReady }) {
     setVideoReady(false);
     setTimeline([]);
     setElapsedSec(0);
+    await new Promise(r => setTimeout(r, 100));
+    if (!videoRef.current) return;
     await mp.startWebcam(videoRef.current, handlePoseResults);
     videoRef.current.onloadeddata = () => setVideoReady(true);
   };

@@ -72,3 +72,4 @@ controller.runJavaScript(
 - **Fase 3:** benchmarking pool FGR (dopo 50+ sessioni reali)
 - **Fase 4:** sistema di apprendimento continuo (RAG + feedback infortuni)
 - **Kiosk mode:** sessione collettiva con claim code (tabella `gare_gait_pending`)
+ 

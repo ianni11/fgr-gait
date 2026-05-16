@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import Onboarding from './components/Onboarding.jsx';
-import Tracker from './components/Tracker.jsx';
-import SessionReport from './components/SessionReport.jsx';
+import Onboarding from './Onboarding.jsx';
+import Tracker from './Tracker.jsx';
+import SessionReport from './SessionReport.jsx';
 
 export default function App() {
   const [screen, setScreen] = useState('onboarding'); // onboarding | tracker | report | history

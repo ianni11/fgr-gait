@@ -225,6 +225,9 @@ export default function SessionReport({ report, user, onNewSession }) {
         {/* TAB: Statistics */}
         {activeTab === 'stats' && (
           <div className="fade-up stagger" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: 10, padding: '14px 18px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7 }}>
+              La barra mostra la distribuzione degli angoli nel range di riferimento. La linea centrale è la <strong style={{color:'var(--text)'}}>media (μ)</strong>, la banda colorata è la <strong style={{color:'var(--text)'}}>deviazione standard (±σ)</strong> — più è stretta, più la tua corsa è consistente.
+            </div>
             {ANGLE_DEFS.map(def => (
               <div key={def.key} className="fade-up">
                 <AngleStatRow def={def} stat={stats[def.key]} />
@@ -281,9 +284,13 @@ export default function SessionReport({ report, user, onNewSession }) {
         {activeTab === 'timeline' && (
           <div className="fade-up">
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '20px' }}>
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20, lineHeight: 1.7 }}>
-                Ogni punto rappresenta un campione acquisito ogni 2 secondi. La banda verde indica il range ideale per ciascuna articolazione. La linea colorata indica lo stato (verde/giallo/rosso) al momento del campionamento.
-              </p>
+              <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: 10, padding: '16px 18px', marginBottom: 20 }}>
+                <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.8, margin: 0 }}>
+                  Ogni punto rappresenta un campione acquisito ogni 2 secondi. La banda verde indica il range ideale per ciascuna articolazione.<br/><br/>
+                  <strong style={{ color: 'var(--text)' }}>μ (media)</strong> — il valore medio dell'angolo durante tutta la sessione. Indica la postura abituale del podista in quella articolazione.<br/><br/>
+                  <strong style={{ color: 'var(--text)' }}>σ (deviazione standard)</strong> — quanto l'angolo varia rispetto alla media. Un valore basso indica una corsa <em>stabile e ripetibile</em>. Un valore alto indica una tecnica <em>irregolare</em> che affatica di più e aumenta il rischio di infortuni.
+                </p>
+              </div>
               {ANGLE_DEFS.map(def => {
                 const vals = timeline.map(s => s[def.key]).filter(v => v != null);
                 if (vals.length === 0) return null;

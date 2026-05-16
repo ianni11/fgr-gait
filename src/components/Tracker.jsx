@@ -58,7 +58,7 @@ function AngleSidebar({ angles }) {
   );
 }
 
-export default function Tracker({ user, onReportReady, onShowHistory }) {
+export default function Tracker({ user, onReportReady, onShowHistory, onLogout, onSessionExpired }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const fpsRef = useRef({ count: 0, last: Date.now() });
@@ -203,9 +203,18 @@ export default function Tracker({ user, onReportReady, onShowHistory }) {
         {/* Destra header */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {user && (
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              {user.username}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                {user.username}
+              </span>
+              <button onClick={onLogout} style={{
+                background: 'none', border: '1px solid var(--border)',
+                color: 'var(--text-muted)', borderRadius: 7, padding: '5px 12px',
+                fontSize: 11, fontFamily: 'var(--font-mono)', cursor: 'pointer',
+              }}>
+                Esci
+              </button>
+            </div>
           )}
           {/* Pulsante Storico — solo se loggato e non in sessione attiva */}
           {isLoggedIn && !mode && (

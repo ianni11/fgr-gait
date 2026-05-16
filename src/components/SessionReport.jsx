@@ -226,7 +226,7 @@ function HistoricReport({ session, user, onBack }) {
 }
 
 // ─── COMPONENTE PRINCIPALE ────────────────────────────────────────────────────
-export default function SessionReport({ report, user, initialTab = 'stats', onNewSession, onShowHistory, onBack }) {
+export default function SessionReport({ report, user, initialTab = 'stats', onNewSession, onShowHistory, onBack, onLogout, onSessionExpired }) {
   const [activeTab, setActiveTab]   = useState(initialTab);
   const [history, setHistory]       = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -254,6 +254,7 @@ export default function SessionReport({ report, user, initialTab = 'stats', onNe
       const res = await fetch(`${import.meta.env.VITE_API_BASE}/get_gait_reports.php`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
+      if (res.status === 401) { onSessionExpired?.(); return; }
       const data = await res.json();
       if (data.success) setHistory(data.reports);
       else setHistoryError(data.message || 'Errore nel caricamento');
@@ -353,6 +354,11 @@ export default function SessionReport({ report, user, initialTab = 'stats', onNe
             <button onClick={onNewSession} style={{ padding: '10px 20px', borderRadius: 'var(--radius)', background: 'rgba(30,64,175,0.15)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6', fontSize: 13, fontWeight: 600 }}>
               + Nuova sessione
             </button>
+            {isLoggedIn && (
+              <button onClick={onLogout} style={{ padding: '10px 14px', borderRadius: 'var(--radius)', background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+                Esci
+              </button>
+            )}
           </div>
         </div>
 

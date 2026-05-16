@@ -7,6 +7,7 @@ export default function App() {
   const [screen, setScreen] = useState('onboarding'); // onboarding | tracker | report | history
   const [user, setUser] = useState(null);
   const [report, setReport] = useState(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => {
     // 1. Ripristino da sessionStorage (reload browser)
@@ -29,7 +30,7 @@ export default function App() {
       return;
     }
 
-    // 3. Token iniettato da Flutter DOPO il mount (caso normale WebView)
+    // 3. Token iniettato da Flutter DOPO il mount
     const handleFlutterToken = (e) => {
       const { token: t, username: uname } = e.detail ?? {};
       if (!t) return;
@@ -45,16 +46,34 @@ export default function App() {
 
   const handleLogin = (token, userData) => {
     setUser(userData);
+    setSessionExpired(false);
   };
 
   const handleProceed = () => {
     setScreen('tracker');
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem('fgr_token');
+    sessionStorage.removeItem('fgr_user');
+    setUser(null);
+    setReport(null);
+    setSessionExpired(false);
+    setScreen('onboarding');
+  };
+
+  // Chiamato dai componenti figli quando ricevono 401
+  const handleSessionExpired = () => {
+    setSessionExpired(true);
+    sessionStorage.removeItem('fgr_token');
+    sessionStorage.removeItem('fgr_user');
+    setUser(null);
+    setScreen('onboarding');
+  };
+
   const handleReportReady = (reportData) => {
     setReport(reportData);
 
-    // Se autenticato, salva sul backend
     const token = sessionStorage.getItem('fgr_token');
     if (token) {
       fetch(`${import.meta.env.VITE_API_BASE}/save_gait_session.php`, {
@@ -71,7 +90,10 @@ export default function App() {
           timeline:         reportData.timeline,
           generated_at:     reportData.generatedAt,
         }),
-      }).catch(() => {}); // silent fail — report si mostra comunque
+      })
+      .then(res => res.json())
+      .then(data => { if (!data.success && data.message?.includes('scaduto')) handleSessionExpired(); })
+      .catch(() => {});
     }
 
     setScreen('report');
@@ -82,16 +104,28 @@ export default function App() {
     setScreen('tracker');
   };
 
-  const handleShowHistory = () => {
-    setScreen('history');
-  };
-
-  const handleBackFromHistory = () => {
-    setScreen('tracker');
-  };
+  const handleShowHistory = () => setScreen('history');
+  const handleBackFromHistory = () => setScreen('tracker');
 
   return (
     <>
+      {/* Banner sessione scaduta — mostrato sopra l'onboarding */}
+      {sessionExpired && screen === 'onboarding' && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 999,
+          background: 'rgba(234,179,8,0.12)', borderBottom: '1px solid rgba(234,179,8,0.35)',
+          padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10,
+          fontFamily: 'var(--font-mono)', fontSize: 13, color: '#eab308',
+        }}>
+          <span>⚠</span>
+          <span>Sessione scaduta — effettua di nuovo il login per continuare.</span>
+          <button onClick={() => setSessionExpired(false)} style={{
+            marginLeft: 'auto', background: 'none', border: 'none',
+            color: '#eab308', cursor: 'pointer', fontSize: 16,
+          }}>×</button>
+        </div>
+      )}
+
       {screen === 'onboarding' && (
         <Onboarding onProceed={handleProceed} onLogin={handleLogin} />
       )}
@@ -100,6 +134,8 @@ export default function App() {
           user={user}
           onReportReady={handleReportReady}
           onShowHistory={handleShowHistory}
+          onLogout={handleLogout}
+          onSessionExpired={handleSessionExpired}
         />
       )}
       {screen === 'report' && report && (
@@ -109,6 +145,8 @@ export default function App() {
           initialTab="stats"
           onNewSession={handleNewSession}
           onShowHistory={handleShowHistory}
+          onLogout={handleLogout}
+          onSessionExpired={handleSessionExpired}
         />
       )}
       {screen === 'history' && (
@@ -119,6 +157,8 @@ export default function App() {
           onNewSession={handleNewSession}
           onShowHistory={handleShowHistory}
           onBack={handleBackFromHistory}
+          onLogout={handleLogout}
+          onSessionExpired={handleSessionExpired}
         />
       )}
     </>

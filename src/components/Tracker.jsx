@@ -46,8 +46,6 @@ function AngleSidebar({ angles }) {
           </div>
         );
       })}
-
-      {/* Legend */}
       <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border)' }}>
         {[['#22c55e', '✓ Ideale'], ['#eab308', '⚠ Attenzione'], ['#ef4444', '✗ Critico']].map(([col, lab]) => (
           <div key={lab} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
@@ -60,7 +58,7 @@ function AngleSidebar({ angles }) {
   );
 }
 
-export default function Tracker({ user, onReportReady }) {
+export default function Tracker({ user, onReportReady, onShowHistory }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const fpsRef = useRef({ count: 0, last: Date.now() });
@@ -77,6 +75,8 @@ export default function Tracker({ user, onReportReady }) {
   const mp = useMediaPipe();
   const sampler = useSampler();
 
+  const isLoggedIn = !!user && !!sessionStorage.getItem('fgr_token');
+
   const handlePoseResults = useCallback((results) => {
     const lm = results.poseLandmarks;
     const canvas = canvasRef.current;
@@ -91,7 +91,6 @@ export default function Tracker({ user, onReportReady }) {
     setAngles(computed);
     setTracking(!!lm);
 
-    // FPS
     fpsRef.current.count++;
     const now = Date.now();
     if (now - fpsRef.current.last >= 1000) {
@@ -99,15 +98,12 @@ export default function Tracker({ user, onReportReady }) {
       fpsRef.current = { count: 0, last: now };
     }
 
-    // Sampler
     sampler.onFrame(computed, () => mp.captureFrame(video, canvas));
 
-    // Update timeline for chart
     if (computed.length > 0) {
       setTimeline(prev => {
         const entry = { t: prev.length * 2 };
         computed.forEach(a => { entry[a.key] = a.deg; });
-        // Keep last 200 samples max
         const next = [...prev.slice(-199), entry];
         return next;
       });
@@ -203,9 +199,36 @@ export default function Tracker({ user, onReportReady }) {
             </div>
           )}
         </div>
+
+        {/* Destra header */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {user && <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{user.username}</span>}
-          {mode && <button onClick={stopAll} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: 7, padding: '6px 14px', fontSize: 12 }}>Stop</button>}
+          {user && (
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              {user.username}
+            </span>
+          )}
+          {/* Pulsante Storico — solo se loggato e non in sessione attiva */}
+          {isLoggedIn && !mode && (
+            <button onClick={onShowHistory} style={{
+              background: 'rgba(30,64,175,0.12)', border: '1px solid rgba(59,130,246,0.25)',
+              color: '#3b82f6', borderRadius: 7, padding: '6px 14px',
+              fontSize: 12, fontFamily: 'var(--font-mono)', cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(30,64,175,0.22)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(30,64,175,0.12)'}
+            >
+              📋 Storico
+            </button>
+          )}
+          {mode && (
+            <button onClick={stopAll} style={{
+              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+              color: '#ef4444', borderRadius: 7, padding: '6px 14px', fontSize: 12,
+            }}>
+              Stop
+            </button>
+          )}
         </div>
       </div>
 
@@ -232,7 +255,6 @@ export default function Tracker({ user, onReportReady }) {
 
             {!mp.loading && (
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, maxWidth: 640, margin: '0 auto' }}>
-                {/* Primary: video upload */}
                 <label style={{
                   background: 'rgba(30,64,175,0.06)', border: '1px solid rgba(59,130,246,0.3)',
                   borderRadius: 'var(--radius-lg)', padding: '32px 24px', cursor: 'pointer',
@@ -249,7 +271,6 @@ export default function Tracker({ user, onReportReady }) {
                   <input type="file" accept="video/*" style={{ display: 'none' }} onChange={e => e.target.files[0] && handleVideoFile(e.target.files[0])}/>
                 </label>
 
-                {/* Secondary: webcam */}
                 <button onClick={startWebcam} style={{
                   background: 'rgba(234,88,12,0.06)', border: '1px solid rgba(234,88,12,0.25)',
                   borderRadius: 'var(--radius-lg)', padding: '32px 20px', cursor: 'pointer',
@@ -265,8 +286,31 @@ export default function Tracker({ user, onReportReady }) {
               </div>
             )}
 
+            {/* Banner storico — solo se loggato */}
+            {isLoggedIn && !mp.loading && (
+              <div
+                onClick={onShowHistory}
+                style={{
+                  maxWidth: 640, margin: '20px auto 0',
+                  background: 'rgba(30,64,175,0.06)', border: '1px solid rgba(59,130,246,0.2)',
+                  borderRadius: 'var(--radius)', padding: '14px 20px',
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  cursor: 'pointer', transition: 'border-color 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(59,130,246,0.45)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(59,130,246,0.2)'}
+              >
+                <span style={{ fontSize: 22 }}>📋</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>Le tue sessioni precedenti</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Consulta lo storico delle analisi biomeccaniche</div>
+                </div>
+                <span style={{ color: 'var(--text-faint)', fontSize: 18 }}>›</span>
+              </div>
+            )}
+
             {/* Features */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginTop: 36, maxWidth: 640, margin: '36px auto 0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, maxWidth: 640, margin: '24px auto 0' }}>
               {[['🦴','33 keypoint','Corpo completo'],['📊','Media + SD','Distribuzione statistica'],['📸','5 frame','Auto-catturati']].map(([ic,t,d])=>(
                 <div key={t} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px', textAlign: 'center' }}>
                   <div style={{ fontSize: 20, marginBottom: 5 }}>{ic}</div>
@@ -281,9 +325,7 @@ export default function Tracker({ user, onReportReady }) {
         {/* Tracker layout */}
         {mode && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 16 }}>
-            {/* Left column */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {/* Video */}
               <div style={{ position: 'relative', borderRadius: 'var(--radius)', overflow: 'hidden', background: '#000', border: '1px solid var(--border)', aspectRatio: '16/9' }}>
                 <video ref={videoRef} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>
                 <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}/>
@@ -297,9 +339,6 @@ export default function Tracker({ user, onReportReady }) {
                   </div>
                 )}
 
-                {tracking && !videoReady && null}
-
-                {/* Status bar */}
                 {tracking && (
                   <div style={{ position: 'absolute', bottom: 10, left: 10, display: 'flex', gap: 6 }}>
                     {[['✓', okCount, '#22c55e'], ['⚠', warnCount, '#eab308'], ['✗', badCount, '#ef4444']].map(([ic, n, col]) => n > 0 && (
@@ -311,7 +350,6 @@ export default function Tracker({ user, onReportReady }) {
                 )}
               </div>
 
-              {/* Recording controls */}
               {tracking && (
                 <div style={{ display: 'flex', gap: 10 }}>
                   {!sampler.isRecording ? (
@@ -338,7 +376,6 @@ export default function Tracker({ user, onReportReady }) {
                 </div>
               )}
 
-              {/* Angle chart */}
               {mode && (
                 <AngleChart
                   timeline={timeline}
@@ -348,7 +385,6 @@ export default function Tracker({ user, onReportReady }) {
               )}
             </div>
 
-            {/* Right sidebar - angle list */}
             <div>
               <div style={{
                 background: 'var(--bg-card)', border: '1px solid var(--border)',

@@ -10,18 +10,35 @@ export default function App() {
 
   // Restore session from sessionStorage on mount
   useEffect(() => {
-    const token = sessionStorage.getItem('fgr_token');
+    // 1. Ripristino da sessionStorage (reload browser)
+    const token   = sessionStorage.getItem('fgr_token');
     const userStr = sessionStorage.getItem('fgr_user');
     if (token && userStr) {
-      try {
-        setUser(JSON.parse(userStr));
-      } catch {}
+      try { setUser(JSON.parse(userStr)); } catch {}
     }
-    // Check if Flutter injected token
+
+    // 2. Token iniettato da Flutter PRIMA del mount React
     if (window.fgrToken) {
+      const u = { username: window.fgrUsername || 'atleta' };
       sessionStorage.setItem('fgr_token', window.fgrToken);
-      setUser({ username: window.fgrUsername || 'atleta' });
+      sessionStorage.setItem('fgr_user', JSON.stringify(u));
+      setUser(u);
+      setScreen('tracker');
+      return;
     }
+
+    // 3. Token iniettato da Flutter DOPO il mount (caso normale WebView)
+    const handleFlutterToken = (e) => {
+      const { token: t, username: uname } = e.detail ?? {};
+      if (!t) return;
+      const u = { username: uname || 'atleta' };
+      sessionStorage.setItem('fgr_token', t);
+      sessionStorage.setItem('fgr_user', JSON.stringify(u));
+      setUser(u);
+      setScreen('tracker');
+    };
+    window.addEventListener('fgr-token-ready', handleFlutterToken);
+    return () => window.removeEventListener('fgr-token-ready', handleFlutterToken);
   }, []);
 
   const handleLogin = (token, userData) => {

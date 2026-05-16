@@ -101,10 +101,10 @@ export default function Onboarding({ onProceed, onLogin }) {
         body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
-      if (data.success && data.token) {
-        sessionStorage.setItem('fgr_token', data.token);
+      if (data.success && data.access_token) {
+        sessionStorage.setItem('fgr_token', data.access_token);
         sessionStorage.setItem('fgr_user', JSON.stringify({ username, ...data.user }));
-        onLogin?.(data.token, data.user);
+        onLogin?.(data.access_token, data.user);
         onProceed();
       } else {
         setError(data.message || 'Credenziali non valide');

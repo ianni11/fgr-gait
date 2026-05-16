@@ -33,6 +33,7 @@ export function useSampler() {
     if (now - lastSampleRef.current < SAMPLE_INTERVAL_MS) return;
     lastSampleRef.current = now;
 
+    console.log('CAMPIONE ACQUISITO', angles.length, 'angoli');
     // Store angle snapshot
     samplesRef.current.push(angles.map(a => ({ key: a.key, deg: a.deg })));
     setSampleCount(samplesRef.current.length);

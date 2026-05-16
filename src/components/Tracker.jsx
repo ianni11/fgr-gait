@@ -133,6 +133,7 @@ export default function Tracker({ user, onReportReady }) {
     if (!videoRef.current) return;
     try {
       await mp.startVideo(videoRef.current, file, handlePoseResults);
+      setVideoReady(true);
       videoRef.current.onerror = () => alert('Errore: formato video non supportato. Usa MP4.');
       videoRef.current.onloadeddata = () => setVideoReady(true);
     } catch(e) {

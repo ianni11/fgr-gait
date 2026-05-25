@@ -83,8 +83,10 @@ export default function Tracker({ user, onReportReady, onShowHistory, onLogout, 
     const video = videoRef.current;
     if (!canvas || !video) return;
 
-    canvas.width = video.videoWidth || video.clientWidth;
-    canvas.height = video.videoHeight || video.clientHeight;
+    const displayW = video.clientWidth;
+    const displayH = video.clientHeight;
+    canvas.width  = displayW;
+    canvas.height = displayH;
     const ctx = canvas.getContext('2d');
     const computed = lm ? computeAngles(lm) : [];
     drawSkeleton(ctx, lm, canvas.width, canvas.height, computed);

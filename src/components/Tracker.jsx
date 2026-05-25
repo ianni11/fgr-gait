@@ -224,6 +224,23 @@ export default function Tracker({ user, onReportReady, onShowHistory, onLogout, 
               📋 Storico
             </button>
           )}
+          {mode === 'webcam' && (
+            <button onClick={switchCamera} style={{
+              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+              color: 'var(--text-muted)', borderRadius: 7, padding: '6px 12px',
+              fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+              transition: 'background 0.15s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+              title={facingMode === 'environment' ? 'Passa a fotocamera frontale' : 'Passa a fotocamera posteriore'}
+            >
+              <span style={{ fontSize: 16 }}>🔄</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                {facingMode === 'environment' ? 'Frontale' : 'Posteriore'}
+              </span>
+            </button>
+          )}
           {mode && (
             <button onClick={stopAll} style={{
               background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',

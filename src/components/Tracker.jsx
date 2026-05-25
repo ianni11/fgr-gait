@@ -70,6 +70,7 @@ export default function Tracker({ user, onReportReady, onShowHistory, onLogout, 
   const [fps, setFps] = useState(0);
   const [timeline, setTimeline] = useState([]);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [facingMode, setFacingMode] = useState('environment');
   const elapsedRef = useRef(null);
 
   const mp = useMediaPipe();
@@ -112,32 +113,23 @@ export default function Tracker({ user, onReportReady, onShowHistory, onLogout, 
     }
   }, [sampler, mp]);
 
-  const startWebcam = async () => {
+  const startWebcam = async (facing = facingMode) => {
     setMode('webcam');
     setTimeline([]);
     setElapsedSec(0);
+    setVideoReady(false);
     await new Promise(r => setTimeout(r, 100));
     if (!videoRef.current) return;
-    await mp.startWebcam(videoRef.current, handlePoseResults);
+    await mp.startWebcam(videoRef.current, handlePoseResults, facing);
     setVideoReady(true);
   };
 
-  const handleVideoFile = async (file) => {
-    setMode('video');
-    setVideoReady(false);
-    setTimeline([]);
-    setElapsedSec(0);
-    await new Promise(r => setTimeout(r, 150));
-    if (!videoRef.current) return;
-    try {
-      await mp.startVideo(videoRef.current, file, handlePoseResults);
-      setVideoReady(true);
-      videoRef.current.onerror = () => alert('Errore: formato video non supportato. Usa MP4.');
-      videoRef.current.onloadeddata = () => setVideoReady(true);
-    } catch(e) {
-      alert('Errore caricamento video: ' + e.message);
-      setMode(null);
-    }
+  const switchCamera = async () => {
+    const next = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(next);
+    mp.stopAll(videoRef.current);
+    setTracking(false);
+    await startWebcam(next);
   };
 
   const stopAll = () => {

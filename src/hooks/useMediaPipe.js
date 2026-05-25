@@ -54,20 +54,29 @@ export function useMediaPipe() {
     return pose;
   }, [loadScripts]);
 
-  const startWebcam = useCallback(async (videoEl, onResults) => {
+  const startWebcam = useCallback(async (videoEl, onResults, facing = 'environment') => {
     const pose = poseRef.current || await initPose(onResults);
     if (!pose) return;
     if (poseRef.current && poseRef.current !== pose) {
       poseRef.current.onResults(onResults);
     }
-
+  
+    // Ferma stream precedente se esiste
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+  
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 1280, height: 720, facingMode: 'environment' },
+      video: { width: 1280, height: 720, facingMode: facing },
     });
     streamRef.current = stream;
     videoEl.srcObject = stream;
     await videoEl.play();
-
+  
+    // Ferma il loop precedente prima di avviarne uno nuovo
+    cancelAnimationFrame(animRef.current);
+  
     const loop = async () => {
       if (videoEl.readyState >= 2) await pose.send({ image: videoEl });
       animRef.current = requestAnimationFrame(loop);

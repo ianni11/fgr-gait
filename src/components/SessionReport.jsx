@@ -119,12 +119,11 @@ function HistoryRow({ session, onOpen }) {
   );
 }
 
-// ─── Report di una sessione storica aperta ────────────────────────────────────
 function HistoricReport({ session, user, onBack }) {
   const [activeTab, setActiveTab] = useState('stats');
-  const stats    = session.session_stats;
-  const timeline = session.timeline;
-  const score    = session.score;
+  const stats           = session.session_stats;
+  const timeline        = session.timeline;
+  const score           = session.score;
   const sampleCount     = session.sample_count;
   const durationSeconds = session.duration_seconds;
 
@@ -158,6 +157,24 @@ function HistoricReport({ session, user, onBack }) {
         <div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, letterSpacing: '0.06em', marginBottom: 12 }}>RIEPILOGO SESSIONE</div>
           <CriticalityBadge stats={stats} />
+          {session.quality_pct != null && (
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{
+                background: session.quality_pct >= 70 ? 'rgba(34,197,94,0.1)' : session.quality_pct >= 40 ? 'rgba(234,179,8,0.1)' : 'rgba(239,68,68,0.1)',
+                border: `1px solid ${session.quality_pct >= 70 ? 'rgba(34,197,94,0.3)' : session.quality_pct >= 40 ? 'rgba(234,179,8,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                borderRadius: 8, padding: '5px 12px',
+                fontSize: 11, fontFamily: 'var(--font-mono)',
+                color: session.quality_pct >= 70 ? '#22c55e' : session.quality_pct >= 40 ? '#eab308' : '#ef4444',
+              }}>
+                📡 Qualità rilevamento: {session.quality_pct}%
+              </div>
+              {session.quality_pct < 60 && (
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  Migliora la posizione della camera o la luce
+                </span>
+              )}
+            </div>
+          )}
           <p style={{ marginTop: 14, color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.7 }}>
             {score >= 80 ? 'Ottima sessione biomeccanica. La maggior parte degli angoli rientra nei range ideali.'
               : score >= 60 ? 'Sessione discreta. Alcuni angoli mostrano criticità moderate.'
@@ -368,6 +385,24 @@ export default function SessionReport({ report, user, initialTab = 'stats', onNe
           <div>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, letterSpacing: '0.06em', marginBottom: 12 }}>RIEPILOGO SESSIONE</div>
             <CriticalityBadge stats={stats} />
+            {report.quality && (
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{
+                  background: report.quality.qualityPct >= 70 ? 'rgba(34,197,94,0.1)' : report.quality.qualityPct >= 40 ? 'rgba(234,179,8,0.1)' : 'rgba(239,68,68,0.1)',
+                  border: `1px solid ${report.quality.qualityPct >= 70 ? 'rgba(34,197,94,0.3)' : report.quality.qualityPct >= 40 ? 'rgba(234,179,8,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                  borderRadius: 8, padding: '5px 12px',
+                  fontSize: 11, fontFamily: 'var(--font-mono)',
+                  color: report.quality.qualityPct >= 70 ? '#22c55e' : report.quality.qualityPct >= 40 ? '#eab308' : '#ef4444',
+                }}>
+                  📡 Qualità rilevamento: {report.quality.qualityPct}%
+                </div>
+                {report.quality.qualityPct < 60 && (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    Migliora la posizione della camera o la luce
+                  </span>
+                )}
+              </div>
+            )}
             <p style={{ marginTop: 14, color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.7 }}>
               {score >= 80 ? 'Ottima sessione biomeccanica. La maggior parte degli angoli rientra nei range ideali con bassa variabilità. Continua così e ripeti l\'analisi tra 4–6 settimane.'
                 : score >= 60 ? 'Sessione discreta. Alcuni angoli mostrano criticità moderate. Consulta le statistiche per i dettagli e considera di lavorare sulle zone segnalate.'

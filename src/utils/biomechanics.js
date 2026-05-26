@@ -176,9 +176,20 @@ export function sessionScore(stats) {
   const vals = ANGLE_DEFS.map(d => {
     const s = stats[d.key];
     if (!s) return null;
+ 
+    // Punteggio base per posizione della media
     const st = angleStatus(d, s.mean);
-    return st === 'ok' ? 100 : st === 'warn' ? 55 : 15;
+    let base = st === 'ok' ? 100 : st === 'warn' ? 55 : 15;
+ 
+    // Penalità per alta deviazione standard:
+    // SD ideale per un corridore regolare è < 8°
+    // SD > 20° indica tecnica molto irregolare
+    // La penalità scala linearmente da 0 a 20 punti
+    const sdPenalty = Math.min(20, Math.max(0, (s.sd - 8) * (20 / 12)));
+ 
+    return Math.max(0, base - sdPenalty);
   }).filter(v => v !== null);
+ 
   if (vals.length === 0) return 0;
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }

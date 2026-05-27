@@ -29,7 +29,7 @@ export const LATERALITY_PRESETS = [
     label:       'Strada / Campo aperto',
     icon:        '🏃',
     description: 'Ripresa outdoor, luce variabile, atleta che passa davanti alla camera',
-    threshold:   0.30,
+    threshold:   0.20,   // era 0.30
     hint:        'Adatto per sessioni in strada o su pista con operatore a bordo campo',
   },
   {
@@ -37,7 +37,7 @@ export const LATERALITY_PRESETS = [
     label:       'Pista / Campo controllato',
     icon:        '🏟️',
     description: 'Superficie piana, luce uniforme, buone condizioni di visibilità',
-    threshold:   0.42,
+    threshold:   0.28,   // era 0.42
     hint:        'Adatto per sessioni in campo sportivo con buona luce naturale',
   },
   {
@@ -45,7 +45,7 @@ export const LATERALITY_PRESETS = [
     label:       'Tapis roulant',
     icon:        '⚙️',
     description: 'Camera fissa ravvicinata, atleta sempre laterale e stabile',
-    threshold:   0.55,
+    threshold:   0.32,   // era 0.55
     hint:        'Adatto per analisi in palestra o laboratorio con setup fisso',
   },
 ];

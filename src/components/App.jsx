@@ -2,25 +2,27 @@ import { useState, useEffect } from 'react';
 import Onboarding from './Onboarding.jsx';
 import Tracker from './Tracker.jsx';
 import SessionReport from './SessionReport.jsx';
+import { DEFAULT_PRESET } from '../utils/biomechanics.js';
 
 export default function App() {
-  const [screen, setScreen] = useState('onboarding'); // onboarding | tracker | report | history
-  const [user, setUser] = useState(null);
+  const [screen, setScreen] = useState('onboarding');
+  const [user, setUser]     = useState(null);
   const [report, setReport] = useState(null);
+  const [preset, setPreset] = useState(DEFAULT_PRESET);
   const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => {
-    // 1. Ripristino da sessionStorage (reload browser)
     const token   = sessionStorage.getItem('fgr_token');
     const userStr = sessionStorage.getItem('fgr_user');
+    const presetStr = sessionStorage.getItem('fgr_preset');
     if (token && userStr) {
       try {
         setUser(JSON.parse(userStr));
+        if (presetStr) setPreset(JSON.parse(presetStr));
         setScreen('tracker');
       } catch {}
     }
 
-    // 2. Token iniettato da Flutter PRIMA del mount React
     if (window.fgrToken) {
       const u = { username: window.fgrUsername || 'atleta' };
       sessionStorage.setItem('fgr_token', window.fgrToken);
@@ -30,7 +32,6 @@ export default function App() {
       return;
     }
 
-    // 3. Token iniettato da Flutter DOPO il mount
     const handleFlutterToken = (e) => {
       const { token: t, username: uname } = e.detail ?? {};
       if (!t) return;
@@ -49,20 +50,26 @@ export default function App() {
     setSessionExpired(false);
   };
 
-  const handleProceed = () => {
+  // onProceed ora riceve il preset scelto nell'onboarding
+  const handleProceed = (chosenPreset) => {
+    if (chosenPreset) {
+      setPreset(chosenPreset);
+      sessionStorage.setItem('fgr_preset', JSON.stringify(chosenPreset));
+    }
     setScreen('tracker');
   };
 
   const handleLogout = () => {
     sessionStorage.removeItem('fgr_token');
     sessionStorage.removeItem('fgr_user');
+    sessionStorage.removeItem('fgr_preset');
     setUser(null);
     setReport(null);
+    setPreset(DEFAULT_PRESET);
     setSessionExpired(false);
     setScreen('onboarding');
   };
 
-  // Chiamato dai componenti figli quando ricevono 401
   const handleSessionExpired = () => {
     setSessionExpired(true);
     sessionStorage.removeItem('fgr_token');
@@ -99,17 +106,12 @@ export default function App() {
     setScreen('report');
   };
 
-  const handleNewSession = () => {
-    setReport(null);
-    setScreen('tracker');
-  };
-
+  const handleNewSession  = () => { setReport(null); setScreen('tracker'); };
   const handleShowHistory = () => setScreen('history');
   const handleBackFromHistory = () => setScreen('tracker');
 
   return (
     <>
-      {/* Banner sessione scaduta — mostrato sopra l'onboarding */}
       {sessionExpired && screen === 'onboarding' && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 999,
@@ -132,6 +134,7 @@ export default function App() {
       {screen === 'tracker' && (
         <Tracker
           user={user}
+          preset={preset}
           onReportReady={handleReportReady}
           onShowHistory={handleShowHistory}
           onLogout={handleLogout}

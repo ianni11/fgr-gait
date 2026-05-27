@@ -1,63 +1,45 @@
 import { useRef, useState, useCallback } from 'react';
-import { pickBestFrameIndex, computeStats, sessionScore, ANGLE_DEFS } from '../utils/biomechanics.js';
+import { pickBestFrameIndex, computeStats, sessionScore, ANGLE_DEFS, DEFAULT_PRESET } from '../utils/biomechanics.js';
 
-const SAMPLE_INTERVAL_MS = 2000;  // ogni quanto si chiude una finestra e si salva un campione
-const WINDOW_MS          = 600;   // durata della finestra di accumulo frame
-const MIN_WINDOW_FRAMES  = 3;     // frame minimi per considerare valida una finestra
-const MAX_FRAMES_STORED  = 5;
-const MIN_VISIBILITY     = 0.55;  // Step 2: soglia visibilità keypoint
-
-// ── Mediana array numerico ────────────────────────────────────────────────
-function median(arr) {
-  if (arr.length === 0) return null;
-  const sorted = [...arr].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid];
-}
-
-// ── Controlla visibilità minima dei keypoint coinvolti in un frame ────────
-function frameHasGoodVisibility(angles, lmSnapshot) {
-  if (!lmSnapshot) return true; // se non abbiamo snapshot, accettiamo
-  return angles.every(({ joints }) => {
-    if (!joints) return true;
-    return joints.every(idx => {
-      const lm = lmSnapshot[idx];
-      return lm && (lm.visibility ?? 1) >= MIN_VISIBILITY;
-    });
-  });
-}
+const FRAME_MIN_INTERVAL_MS = 120;  // accetta max ~8 frame/s per evitare ridondanza
+const MAX_FRAMES_STORED     = 5;
+const MIN_LATERAL_FRAMES    = 10;   // frame laterali minimi per report valido
 
 export function useSampler() {
-  // Buffer finestra corrente: array di frame accumulati nell'intervallo WINDOW_MS
-  const windowBufferRef  = useRef([]);   // [{key, deg}[], ...]  — frame nella finestra aperta
-  const windowStartRef   = useRef(0);    // timestamp apertura finestra corrente
-  const lastSampleRef    = useRef(0);    // timestamp ultimo campione salvato
+  // Buffer frame laterali accettati
+  const lateralFramesRef    = useRef([]);
+  const lastFrameTimeRef    = useRef(0);
+  const firstFrameTimeRef   = useRef(0);   // timestamp primo frame laterale accettato
+  const lastAcceptedTimeRef = useRef(0);   // timestamp ultimo frame laterale accettato
+  const isRecordingRef      = useRef(false);
 
-  // Dati sessione
-  const samplesRef       = useRef([]);   // campioni consolidati (uno per finestra)
-  const frameUrlsRef     = useRef([]);
-  const frameAnglesRef   = useRef([]);
-  const isRecordingRef   = useRef(false);
+  // Frame catturati per la visualizzazione
+  const frameUrlsRef        = useRef([]);
+  const frameAnglesRef      = useRef([]);
+  const lastCaptureIdxRef   = useRef(0);
 
   // Statistiche qualità
-  const framesReceivedRef = useRef(0);
-  const framesAcceptedRef = useRef(0);
+  const framesReceivedRef   = useRef(0);
+  const framesAcceptedRef   = useRef(0);
+
+  // Preset corrente
+  const presetRef           = useRef(DEFAULT_PRESET);
 
   const [isRecording, setIsRecording]   = useState(false);
-  const [sampleCount, setSampleCount]   = useState(0);
+  const [lateralCount, setLateralCount] = useState(0);
 
-  const startRecording = useCallback(() => {
-    samplesRef.current        = [];
-    frameUrlsRef.current      = [];
-    frameAnglesRef.current    = [];
-    windowBufferRef.current   = [];
-    windowStartRef.current    = 0;
-    lastSampleRef.current     = 0;
-    framesReceivedRef.current = 0;
-    framesAcceptedRef.current = 0;
-    setSampleCount(0);
+  const startRecording = useCallback((preset = DEFAULT_PRESET) => {
+    lateralFramesRef.current    = [];
+    frameUrlsRef.current        = [];
+    frameAnglesRef.current      = [];
+    lastFrameTimeRef.current    = 0;
+    firstFrameTimeRef.current   = 0;
+    lastAcceptedTimeRef.current = 0;
+    lastCaptureIdxRef.current   = 0;
+    framesReceivedRef.current   = 0;
+    framesAcceptedRef.current   = 0;
+    presetRef.current           = preset;
+    setLateralCount(0);
     isRecordingRef.current = true;
     setIsRecording(true);
   }, []);
@@ -65,114 +47,79 @@ export function useSampler() {
   const stopRecording = useCallback(() => {
     isRecordingRef.current = false;
     setIsRecording(false);
-    // Consolida eventuale finestra parziale se ha abbastanza frame
-    _consolidateWindow();
   }, []);
 
-  // ── Consolida la finestra corrente in un campione ─────────────────────
-  const _consolidateWindow = useCallback(() => {
-    const buf = windowBufferRef.current;
-    if (buf.length < MIN_WINDOW_FRAMES) {
-      windowBufferRef.current = [];
-      return;
-    }
-
-    // Per ogni angolo calcola la mediana dei valori nella finestra
-    const consolidated = {};
-    ANGLE_DEFS.forEach(def => { consolidated[def.key] = []; });
-
-    buf.forEach(frame => {
-      frame.forEach(({ key, deg }) => {
-        if (consolidated[key] !== undefined && deg !== null) {
-          consolidated[key].push(deg);
-        }
-      });
-    });
-
-    const sample = [];
-    ANGLE_DEFS.forEach(def => {
-      const vals = consolidated[def.key];
-      const med = median(vals);
-      if (med !== null) {
-        sample.push({ key: def.key, deg: Math.round(med * 10) / 10 });
-      }
-    });
-
-    if (sample.length > 0) {
-      samplesRef.current.push(sample);
-      setSampleCount(samplesRef.current.length);
-    }
-
-    windowBufferRef.current = [];
-  }, []);
-
-  // ── Riceve ogni frame da Tracker ─────────────────────────────────────
-  const onFrame = useCallback((angles, captureFrameFn, landmarks) => {
+  // ── Riceve ogni frame con score lateralità già calcolato da Tracker ──────
+  const onFrame = useCallback((angles, captureFrameFn, lateralityScore) => {
     if (!isRecordingRef.current || angles.length === 0) return;
 
     const now = Date.now();
     framesReceivedRef.current++;
 
-    // Step 2: filtra frame con visibilità bassa
-    const goodVisibility = angles.every(a => {
-      // usa visibility dal landmark se disponibile nell'oggetto angle
-      return (a.visibility === undefined) || (a.visibility >= MIN_VISIBILITY);
-    });
-    if (!goodVisibility) return;
+    // Throttle: non accettare frame troppo ravvicinati
+    if (now - lastFrameTimeRef.current < FRAME_MIN_INTERVAL_MS) return;
+
+    // Filtro lateralità: scarta frame non sufficientemente laterali
+    const threshold = presetRef.current?.threshold ?? DEFAULT_PRESET.threshold;
+    if ((lateralityScore ?? 0) < threshold) return;
+
     framesAcceptedRef.current++;
+    lastFrameTimeRef.current = now;
 
-    // Inizializza finestra se è la prima volta o se è passato SAMPLE_INTERVAL_MS
-    if (windowStartRef.current === 0) {
-      windowStartRef.current = now;
-    }
+    // Registra timestamp primo e ultimo frame accettato per durationSeconds reale
+    if (firstFrameTimeRef.current === 0) firstFrameTimeRef.current = now;
+    lastAcceptedTimeRef.current = now;
 
-    const windowAge = now - windowStartRef.current;
+    // Accumula frame laterale
+    lateralFramesRef.current.push(
+      angles.map(a => ({ key: a.key, deg: a.deg }))
+    );
+    setLateralCount(lateralFramesRef.current.length);
 
-    if (windowAge <= WINDOW_MS) {
-      // Siamo dentro la finestra — accumula il frame
-      windowBufferRef.current.push(angles.map(a => ({ key: a.key, deg: a.deg })));
-    } else {
-      // Finestra scaduta — consolida e apri la prossima se è passato l'intervallo
-      const timeSinceLastSample = now - lastSampleRef.current;
-
-      if (timeSinceLastSample >= SAMPLE_INTERVAL_MS) {
-        // Consolida finestra precedente
-        _consolidateWindow();
-        lastSampleRef.current  = now;
-        windowStartRef.current = now;
-
-        // Cattura frame rappresentativo se serve
-        if (frameUrlsRef.current.length < MAX_FRAMES_STORED) {
-          const dataUrl = captureFrameFn?.();
-          if (dataUrl) {
-            frameUrlsRef.current.push(dataUrl);
-            frameAnglesRef.current.push(
-              angles.map(a => ({ key: a.key, deg: a.deg, name: a.name }))
-            );
-          }
-        }
-
-        // Inizia ad accumulare il frame corrente nella nuova finestra
-        windowBufferRef.current = [angles.map(a => ({ key: a.key, deg: a.deg }))];
+    // Cattura frame visivo ogni ~20 frame laterali accettati
+    const captureEvery = 20;
+    if (
+      frameUrlsRef.current.length < MAX_FRAMES_STORED &&
+      lateralFramesRef.current.length - lastCaptureIdxRef.current >= captureEvery
+    ) {
+      const dataUrl = captureFrameFn?.();
+      if (dataUrl) {
+        frameUrlsRef.current.push(dataUrl);
+        frameAnglesRef.current.push(
+          angles.map(a => ({ key: a.key, deg: a.deg, name: a.name }))
+        );
+        lastCaptureIdxRef.current = lateralFramesRef.current.length;
       }
-      // Se non è ancora passato SAMPLE_INTERVAL_MS, aspettiamo (finestra tra un campione e l'altro)
     }
-  }, [_consolidateWindow]);
+  }, []);
 
+  // ── Costruisce il report finale ─────────────────────────────────────────
   const buildReport = useCallback(() => {
-    const samples = samplesRef.current;
-    if (samples.length < 3) return null;
+    const frames = lateralFramesRef.current;
+    if (frames.length < MIN_LATERAL_FRAMES) return null;
 
-    const stats   = computeStats(samples);
-    const score   = sessionScore(stats);
+    // Distribuisce uniformemente i frame per timeline (max 30 punti)
+    const N_TIMELINE = Math.min(frames.length, 30);
+    const step = Math.max(1, Math.floor(frames.length / N_TIMELINE));
+    const timelineSamples = [];
+    for (let i = 0; i < frames.length; i += step) {
+      timelineSamples.push(frames[i]);
+    }
 
-    const timeline = samples.map((frame, i) => {
-      const entry = { t: i * (SAMPLE_INTERVAL_MS / 1000) };
+    const stats = computeStats(timelineSamples);
+    const score = sessionScore(stats);
+
+    const timeline = timelineSamples.map((frame, i) => {
+      const entry = { t: i * 2 };
       frame.forEach(({ key, deg }) => { entry[key] = deg; });
       return entry;
     });
 
-    // Qualità sessione: % frame accettati
+    // Durata reale: intervallo tra primo e ultimo frame laterale accettato
+    const durationSeconds = firstFrameTimeRef.current > 0
+      ? Math.round((lastAcceptedTimeRef.current - firstFrameTimeRef.current) / 1000)
+      : 0;
+
     const totalFrames    = framesReceivedRef.current;
     const acceptedFrames = framesAcceptedRef.current;
     const qualityPct     = totalFrames > 0
@@ -183,18 +130,27 @@ export function useSampler() {
       stats,
       score,
       timeline,
-      sampleCount:     samples.length,
+      sampleCount:     timelineSamples.length,
       frames:          frameUrlsRef.current,
       frameAngles:     frameAnglesRef.current,
-      durationSeconds: samples.length * (SAMPLE_INTERVAL_MS / 1000),
+      durationSeconds,
       generatedAt:     new Date().toISOString(),
       quality: {
-        framesReceived: totalFrames,
-        framesAccepted: acceptedFrames,
+        framesReceived:  totalFrames,
+        framesAccepted:  acceptedFrames,
+        lateralFrames:   frames.length,
         qualityPct,
+        preset:          presetRef.current?.id ?? 'strada',
       },
     };
   }, []);
 
-  return { isRecording, sampleCount, startRecording, stopRecording, onFrame, buildReport };
+  return {
+    isRecording,
+    sampleCount: lateralCount,
+    startRecording,
+    stopRecording,
+    onFrame,
+    buildReport,
+  };
 }

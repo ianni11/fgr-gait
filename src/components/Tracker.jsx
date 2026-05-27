@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { computeAngles, angleStatus, ANGLE_DEFS } from '../utils/biomechanics.js';
+import { computeAngles, angleStatus, ANGLE_DEFS, computeLaterality } from '../utils/biomechanics.js';
 import { drawSkeleton } from '../utils/drawSkeleton.js';
 import { useMediaPipe } from '../hooks/useMediaPipe.js';
 import { useSampler } from '../hooks/useSampler.js';
@@ -58,7 +58,7 @@ function AngleSidebar({ angles }) {
   );
 }
 
-export default function Tracker({ user, onReportReady, onShowHistory, onLogout, onSessionExpired }) {
+export default function Tracker({ user, preset, onReportReady, onShowHistory, onLogout, onSessionExpired }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const fpsRef = useRef({ count: 0, last: Date.now() });
@@ -101,14 +101,15 @@ export default function Tracker({ user, onReportReady, onShowHistory, onLogout, 
       fpsRef.current = { count: 0, last: now };
     }
 
-    sampler.onFrame(computed, () => mp.captureFrame(video, canvas));
+    // Calcola laterality score e passalo al sampler
+    const lateralityScore = lm ? computeLaterality(lm) : 0;
+    sampler.onFrame(computed, () => mp.captureFrame(video, canvas), lateralityScore);
 
     if (computed.length > 0) {
       setTimeline(prev => {
         const entry = { t: prev.length * 2 };
         computed.forEach(a => { entry[a.key] = a.deg; });
-        const next = [...prev.slice(-199), entry];
-        return next;
+        return [...prev.slice(-199), entry];
       });
     }
   }, [sampler, mp]);
@@ -158,7 +159,7 @@ export default function Tracker({ user, onReportReady, onShowHistory, onLogout, 
   };
 
   const startRecording = () => {
-    sampler.startRecording();
+    sampler.startRecording(preset);
     setTimeline([]);
     setElapsedSec(0);
     clearInterval(elapsedRef.current);
@@ -170,7 +171,7 @@ export default function Tracker({ user, onReportReady, onShowHistory, onLogout, 
     clearInterval(elapsedRef.current);
     const report = sampler.buildReport();
     if (report) onReportReady(report);
-    else alert('Raccogli almeno 3 campioni (≥6 secondi) prima di generare il report.');
+    else alert('Raccogli almeno 10 frame laterali prima di generare il report. Assicurati di correre parallelo alla camera.');
   };
 
   useEffect(() => () => { mp.stopAll(videoRef.current); clearInterval(elapsedRef.current); }, []);
@@ -206,7 +207,7 @@ export default function Tracker({ user, onReportReady, onShowHistory, onLogout, 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, padding: '3px 10px' }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', animation: 'pulse 0.8s infinite' }}/>
               <span style={{ fontSize: 11, color: '#ef4444', fontFamily: 'var(--font-mono)' }}>
-                REC {formatTime(elapsedSec)} · {sampler.sampleCount} camp.
+                REC {formatTime(elapsedSec)} · {sampler.sampleCount} frame lat.
               </span>
             </div>
           )}
@@ -228,7 +229,6 @@ export default function Tracker({ user, onReportReady, onShowHistory, onLogout, 
               </button>
             </div>
           )}
-          {/* Pulsante Storico — solo se loggato e non in sessione attiva */}
           {isLoggedIn && !mode && (
             <button onClick={onShowHistory} style={{
               background: 'rgba(30,64,175,0.12)', border: '1px solid rgba(59,130,246,0.25)',
@@ -324,12 +324,27 @@ export default function Tracker({ user, onReportReady, onShowHistory, onLogout, 
               </div>
             )}
 
-            {/* Banner storico — solo se loggato */}
+            {/* Preset attivo — badge informativo */}
+            {!mp.loading && preset && (
+              <div style={{
+                maxWidth: 640, margin: '16px auto 0',
+                background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)',
+                borderRadius: 8, padding: '10px 16px',
+                display: 'flex', alignItems: 'center', gap: 10,
+              }}>
+                <span style={{ fontSize: 16 }}>{preset.icon}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  Scenario: <strong style={{ color: 'var(--text)' }}>{preset.label}</strong>
+                </span>
+              </div>
+            )}
+
+            {/* Banner storico */}
             {isLoggedIn && !mp.loading && (
               <div
                 onClick={onShowHistory}
                 style={{
-                  maxWidth: 640, margin: '20px auto 0',
+                  maxWidth: 640, margin: '12px auto 0',
                   background: 'rgba(30,64,175,0.06)', border: '1px solid rgba(59,130,246,0.2)',
                   borderRadius: 'var(--radius)', padding: '14px 20px',
                   display: 'flex', alignItems: 'center', gap: 14,
@@ -408,7 +423,7 @@ export default function Tracker({ user, onReportReady, onShowHistory, onLogout, 
                       fontWeight: 800, fontSize: 14, letterSpacing: '0.06em',
                       boxShadow: '0 6px 24px rgba(234,88,12,0.35)',
                     }}>
-                      ■ GENERA REPORT ({sampler.sampleCount} camp.)
+                      ■ GENERA REPORT ({sampler.sampleCount} frame lat.)
                     </button>
                   )}
                 </div>

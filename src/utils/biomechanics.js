@@ -20,9 +20,39 @@ export const POSE_CONNECTIONS = [
   [24,26],[26,28],[28,30],[28,32],[30,32],
 ];
 
+// ── Preset scenari di ripresa ──────────────────────────────────────────────
+// threshold: soglia minima del laterality score per accettare un frame
+// Valori più alti = più selettivo = solo frame molto laterali
+export const LATERALITY_PRESETS = [
+  {
+    id:          'strada',
+    label:       'Strada / Campo aperto',
+    icon:        '🏃',
+    description: 'Ripresa outdoor, luce variabile, atleta che passa davanti alla camera',
+    threshold:   0.30,
+    hint:        'Adatto per sessioni in strada o su pista con operatore a bordo campo',
+  },
+  {
+    id:          'pista',
+    label:       'Pista / Campo controllato',
+    icon:        '🏟️',
+    description: 'Superficie piana, luce uniforme, buone condizioni di visibilità',
+    threshold:   0.42,
+    hint:        'Adatto per sessioni in campo sportivo con buona luce naturale',
+  },
+  {
+    id:          'tapis',
+    label:       'Tapis roulant',
+    icon:        '⚙️',
+    description: 'Camera fissa ravvicinata, atleta sempre laterale e stabile',
+    threshold:   0.55,
+    hint:        'Adatto per analisi in palestra o laboratorio con setup fisso',
+  },
+];
+
+export const DEFAULT_PRESET = LATERALITY_PRESETS[0];
+
 // ── Angle definitions ──────────────────────────────────────────────────────
-// ideal: green band | warn: yellow band | outside warn = red
-// These are population defaults; will be overridden by FGR benchmark data
 export const ANGLE_DEFS = [
   {
     key: 'knee_l',
@@ -99,6 +129,42 @@ export const JOINT_FOR_KEY = {
   trunk:    KP.L_SHOULDER,
 };
 
+// ── Laterality score ───────────────────────────────────────────────────────
+// Combina due segnali:
+// 1. Asimmetria visibilità spalle e fianchi (60%)
+//    → alta quando un lato è visibile e l'altro no = soggetto laterale
+// 2. Strettezza relativa delle spalle (40%)
+//    → bassa larghezza spalle = soggetto di profilo
+//
+// Restituisce un valore 0-1. Più alto = più laterale.
+export function computeLaterality(lm) {
+  if (!lm || lm.length < 25) return 0;
+
+  const ls = lm[KP.L_SHOULDER];
+  const rs = lm[KP.R_SHOULDER];
+  const lh = lm[KP.L_HIP];
+  const rh = lm[KP.R_HIP];
+
+  if (!ls || !rs || !lh || !rh) return 0;
+
+  // Segnale 1: asimmetria visibilità (0-1)
+  const visAsymShoulder = Math.abs((ls.visibility ?? 0) - (rs.visibility ?? 0));
+  const visAsymHip      = Math.abs((lh.visibility ?? 0) - (rh.visibility ?? 0));
+  const visScore        = (visAsymShoulder + visAsymHip) / 2;
+
+  // Segnale 2: larghezza spalle relativa alla larghezza frame (0-1)
+  // Quando il soggetto è frontale le spalle sono larghe (valore alto)
+  // Quando è laterale le spalle sono strette (valore basso)
+  // Invertiamo per avere: stretto = alto score
+  const shoulderWidth   = Math.abs(ls.x - rs.x);  // 0-1, normalizzato al frame
+  // Larghezza tipica frontale ≈ 0.15-0.25, laterale ≈ 0.02-0.08
+  // Normalizziamo su range 0-0.20, invertiamo
+  const widthScore      = Math.max(0, 1 - shoulderWidth / 0.20);
+
+  // Combinazione pesata
+  return Math.min(1, 0.60 * visScore + 0.40 * widthScore);
+}
+
 // ── Math helpers ──────────────────────────────────────────────────────────
 export function angleBetween(a, b, c) {
   if (!a || !b || !c) return null;
@@ -126,7 +192,6 @@ export function angleStatus(def, deg) {
 
 // ── Statistics ────────────────────────────────────────────────────────────
 export function computeStats(samples) {
-  // samples: array of { key, deg }[]  (one per frame)
   const byKey = {};
   ANGLE_DEFS.forEach(d => { byKey[d.key] = []; });
 
@@ -145,9 +210,9 @@ export function computeStats(samples) {
     const sd = Math.sqrt(variance);
     stats[def.key] = {
       mean: Math.round(mean * 10) / 10,
-      sd: Math.round(sd * 10) / 10,
-      min: Math.min(...vals),
-      max: Math.max(...vals),
+      sd:   Math.round(sd * 10) / 10,
+      min:  Math.min(...vals),
+      max:  Math.max(...vals),
       count: vals.length,
       values: vals,
       status: angleStatus(def, mean),
@@ -156,7 +221,6 @@ export function computeStats(samples) {
   return stats;
 }
 
-// Pick the frame whose angles are closest to the session mean
 export function pickBestFrameIndex(samples, stats) {
   if (samples.length === 0) return 0;
   let bestIdx = 0, bestScore = Infinity;
@@ -171,25 +235,17 @@ export function pickBestFrameIndex(samples, stats) {
   return bestIdx;
 }
 
-// Overall session score 0–100
+// Score pesato sulla SD
 export function sessionScore(stats) {
   const vals = ANGLE_DEFS.map(d => {
     const s = stats[d.key];
     if (!s) return null;
- 
-    // Punteggio base per posizione della media
     const st = angleStatus(d, s.mean);
     let base = st === 'ok' ? 100 : st === 'warn' ? 55 : 15;
- 
-    // Penalità per alta deviazione standard:
-    // SD ideale per un corridore regolare è < 8°
-    // SD > 20° indica tecnica molto irregolare
-    // La penalità scala linearmente da 0 a 20 punti
+    // Penalità SD: ideale < 8°, massima penalità a SD > 20°
     const sdPenalty = Math.min(20, Math.max(0, (s.sd - 8) * (20 / 12)));
- 
     return Math.max(0, base - sdPenalty);
   }).filter(v => v !== null);
- 
   if (vals.length === 0) return 0;
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }

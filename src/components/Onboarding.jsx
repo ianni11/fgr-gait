@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { LATERALITY_PRESETS } from '../utils/biomechanics.js';
 
 const STEPS = [
   {
@@ -31,52 +32,31 @@ const STEPS = [
 function SetupIllustration() {
   return (
     <svg viewBox="0 0 420 200" style={{ width: '100%', maxWidth: 420, display: 'block', margin: '0 auto' }}>
-      {/* Ground */}
       <line x1="20" y1="170" x2="400" y2="170" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" strokeDasharray="6,4"/>
-
-      {/* Phone on stand */}
       <rect x="28" y="120" width="28" height="44" rx="4" fill="rgba(30,64,175,0.5)" stroke="#3b82f6" strokeWidth="1.5"/>
       <rect x="31" y="123" width="22" height="35" rx="2" fill="rgba(59,130,246,0.2)"/>
-      {/* lens */}
       <circle cx="42" cy="128" r="3" fill="#3b82f6" opacity="0.8"/>
-      {/* stand */}
       <line x1="42" y1="164" x2="42" y2="170" stroke="#3b82f6" strokeWidth="2"/>
       <line x1="30" y1="170" x2="54" y2="170" stroke="#3b82f6" strokeWidth="2"/>
-
-      {/* Distance arrow */}
       <line x1="60" y1="160" x2="200" y2="160" stroke="rgba(234,88,12,0.6)" strokeWidth="1" strokeDasharray="4,3"/>
       <text x="130" y="155" textAnchor="middle" fill="#EA580C" fontSize="10" fontFamily="JetBrains Mono, monospace">3–6 m</text>
       <polygon points="60,158 68,154 68,162" fill="#EA580C" opacity="0.7"/>
       <polygon points="200,158 192,154 192,162" fill="#EA580C" opacity="0.7"/>
-
-      {/* Runner silhouette */}
-      {/* Head */}
       <circle cx="230" cy="105" r="12" fill="none" stroke="#f0f4ff" strokeWidth="1.5" opacity="0.7"/>
-      {/* Torso */}
       <line x1="230" y1="117" x2="228" y2="145" stroke="#f0f4ff" strokeWidth="2" opacity="0.7"/>
-      {/* Left arm */}
       <line x1="228" y1="122" x2="210" y2="135" stroke="#f0f4ff" strokeWidth="1.5" opacity="0.5"/>
-      {/* Right arm */}
       <line x1="228" y1="122" x2="248" y2="132" stroke="#f0f4ff" strokeWidth="1.5" opacity="0.5"/>
-      {/* Left leg */}
       <line x1="228" y1="145" x2="215" y2="160" stroke="#f0f4ff" strokeWidth="2" opacity="0.7"/>
       <line x1="215" y1="160" x2="210" y2="170" stroke="#f0f4ff" strokeWidth="2" opacity="0.7"/>
-      {/* Right leg */}
       <line x1="228" y1="145" x2="240" y2="158" stroke="#f0f4ff" strokeWidth="2" opacity="0.7"/>
       <line x1="240" y1="158" x2="248" y2="170" stroke="#f0f4ff" strokeWidth="2" opacity="0.7"/>
-
-      {/* Skeleton joints overlay */}
       {[[230,105],[228,130],[215,160],[240,158],[210,170],[248,170]].map(([x,y],i)=>(
         <circle key={i} cx={x} cy={y} r="4" fill="none" stroke="#22c55e" strokeWidth="1.5" opacity="0.7"/>
       ))}
-
-      {/* Height marker */}
       <line x1="80" y1="140" x2="80" y2="170" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
       <line x1="76" y1="140" x2="84" y2="140" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
       <line x1="76" y1="170" x2="84" y2="170" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
       <text x="96" y="158" fill="rgba(255,255,255,0.4)" fontSize="9" fontFamily="JetBrains Mono, monospace">90–100cm</text>
-
-      {/* Direction arrows */}
       <text x="300" y="148" fill="rgba(234,88,12,0.7)" fontSize="18">→</text>
       <text x="260" y="148" fill="rgba(234,88,12,0.4)" fontSize="14">→</text>
     </svg>
@@ -84,11 +64,12 @@ function SetupIllustration() {
 }
 
 export default function Onboarding({ onProceed, onLogin }) {
-  const [step, setStep] = useState(0); // 0=guide, 1=login
+  const [step, setStep] = useState(0); // 0=guida, 1=scenario, 2=login
+  const [selectedPreset, setSelectedPreset] = useState(LATERALITY_PRESETS[0]);
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [logging, setLogging] = useState(false);
-  const [error, setError] = useState('');
+  const [password, setPassword]  = useState('');
+  const [logging, setLogging]    = useState(false);
+  const [error, setError]        = useState('');
 
   const handleLogin = async () => {
     if (!username || !password) { setError('Inserisci username e password'); return; }
@@ -105,7 +86,7 @@ export default function Onboarding({ onProceed, onLogin }) {
         sessionStorage.setItem('fgr_token', data.access_token);
         sessionStorage.setItem('fgr_user', JSON.stringify({ username, ...data.user }));
         onLogin?.(data.access_token, data.user);
-        onProceed();
+        onProceed(selectedPreset);
       } else {
         setError(data.message || 'Credenziali non valide');
       }
@@ -117,13 +98,13 @@ export default function Onboarding({ onProceed, onLogin }) {
   };
 
   const skipLogin = () => {
-    // Guest mode — no saving to DB
     sessionStorage.removeItem('fgr_token');
-    onProceed();
+    onProceed(selectedPreset);
   };
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px' }}>
+
       {/* Logo */}
       <div style={{ marginBottom: 40, textAlign: 'center' }}>
         <div style={{
@@ -153,14 +134,12 @@ export default function Onboarding({ onProceed, onLogin }) {
         </p>
       </div>
 
+      {/* ── STEP 0: Guida ── */}
       {step === 0 && (
         <div style={{ width: '100%', maxWidth: 680 }} className="fade-up">
           <div style={{
-            background: 'rgba(30,64,175,0.06)',
-            border: '1px solid rgba(59,130,246,0.2)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '28px 32px',
-            marginBottom: 24,
+            background: 'rgba(30,64,175,0.06)', border: '1px solid rgba(59,130,246,0.2)',
+            borderRadius: 'var(--radius-lg)', padding: '28px 32px', marginBottom: 24,
           }}>
             <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, letterSpacing: '0.05em', marginBottom: 20, color: '#f0f4ff' }}>
               COME PREPARARE IL TUO VIDEO
@@ -190,25 +169,136 @@ export default function Onboarding({ onProceed, onLogin }) {
               border: 'none', color: '#fff', fontFamily: 'var(--font-display)',
               fontWeight: 800, fontSize: 16, letterSpacing: '0.06em',
               boxShadow: '0 8px 32px rgba(30,64,175,0.4)',
-              transition: 'transform 0.15s, box-shadow 0.15s',
+              transition: 'transform 0.15s, box-shadow 0.15s', cursor: 'pointer',
             }}
-              onMouseEnter={e => e.target.style.transform = 'translateY(-2px)'}
-              onMouseLeave={e => e.target.style.transform = 'translateY(0)'}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
             >
-              HO CAPITO · ACCEDI
+              HO CAPITO · CONTINUA
             </button>
-            <button onClick={skipLogin} style={{
+            <button onClick={() => { setStep(2); }} style={{
               padding: '14px 20px', borderRadius: 'var(--radius)',
               background: 'var(--bg-card)', border: '1px solid var(--border)',
-              color: 'var(--text-muted)', fontSize: 13,
+              color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer',
             }}>
-              Prova senza account
+              Salta
             </button>
           </div>
         </div>
       )}
 
+      {/* ── STEP 1: Scelta scenario ── */}
       {step === 1 && (
+        <div style={{ width: '100%', maxWidth: 560 }} className="fade-up">
+          <div style={{
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-lg)', padding: '32px',
+          }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, letterSpacing: '0.05em', marginBottom: 6, color: '#f0f4ff' }}>
+              DOVE EFFETTUI LA RIPRESA?
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 24, lineHeight: 1.6 }}>
+              Seleziona il contesto di ripresa. Il sistema calibrerà automaticamente il filtro di qualità per escludere i frame non laterali.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {LATERALITY_PRESETS.map(preset => {
+                const isSelected = selectedPreset.id === preset.id;
+                return (
+                  <div
+                    key={preset.id}
+                    onClick={() => setSelectedPreset(preset)}
+                    style={{
+                      border: `2px solid ${isSelected ? '#3b82f6' : 'var(--border)'}`,
+                      background: isSelected ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.02)',
+                      borderRadius: 'var(--radius)',
+                      padding: '16px 20px',
+                      cursor: 'pointer',
+                      transition: 'border-color 0.15s, background 0.15s',
+                      display: 'flex', gap: 16, alignItems: 'flex-start',
+                    }}
+                    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = 'rgba(59,130,246,0.4)'; }}
+                    onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)'; }}
+                  >
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                      background: isSelected ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${isSelected ? 'rgba(59,130,246,0.4)' : 'var(--border)'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 22,
+                    }}>
+                      {preset.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontWeight: 700, fontSize: 15, color: isSelected ? '#f0f4ff' : 'var(--text)' }}>
+                          {preset.label}
+                        </span>
+                        {isSelected && (
+                          <span style={{
+                            background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.4)',
+                            color: '#3b82f6', borderRadius: 5, padding: '1px 8px', fontSize: 10,
+                            fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+                          }}>
+                            SELEZIONATO
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 6 }}>
+                        {preset.description}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>
+                        {preset.hint}
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div style={{ color: '#3b82f6', fontSize: 20, flexShrink: 0 }}>✓</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Nota tecnica */}
+            <div style={{
+              marginTop: 20, background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.2)',
+              borderRadius: 8, padding: '10px 14px', fontSize: 11, color: 'rgba(234,179,8,0.7)',
+              lineHeight: 1.6,
+            }}>
+              ⚠ La scelta del contesto influenza la sensibilità del filtro laterale. Usare il preset sbagliato può ridurre la qualità del dato: un preset troppo permissivo include frame frontali, uno troppo restrittivo scarta troppi frame validi.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+            <button onClick={() => setStep(2)} style={{
+              flex: 1, padding: '14px', borderRadius: 'var(--radius)',
+              background: 'linear-gradient(135deg, #1E40AF, #2563eb)',
+              border: 'none', color: '#fff', fontFamily: 'var(--font-display)',
+              fontWeight: 800, fontSize: 16, letterSpacing: '0.06em',
+              boxShadow: '0 8px 32px rgba(30,64,175,0.4)', cursor: 'pointer',
+            }}>
+              CONTINUA · ACCEDI
+            </button>
+            <button onClick={skipLogin} style={{
+              padding: '14px 20px', borderRadius: 'var(--radius)',
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer',
+            }}>
+              Prova senza account
+            </button>
+          </div>
+
+          <button onClick={() => setStep(0)} style={{
+            marginTop: 12, background: 'none', border: 'none',
+            color: 'var(--text-faint)', fontSize: 13, cursor: 'pointer',
+          }}>
+            ← Torna alla guida
+          </button>
+        </div>
+      )}
+
+      {/* ── STEP 2: Login ── */}
+      {step === 2 && (
         <div style={{ width: '100%', maxWidth: 380 }} className="fade-up">
           <div style={{
             background: 'var(--bg-card)', border: '1px solid var(--border)',
@@ -220,6 +310,25 @@ export default function Onboarding({ onProceed, onLogin }) {
             <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 28, lineHeight: 1.6 }}>
               Usa le credenziali del tuo account FGR per salvare i report e confrontarli nel tempo.
             </p>
+
+            {/* Preset scelto — riepilogo */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20,
+              background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)',
+              borderRadius: 8, padding: '8px 12px',
+            }}>
+              <span style={{ fontSize: 18 }}>{selectedPreset.icon}</span>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 1 }}>Scenario selezionato</div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{selectedPreset.label}</div>
+              </div>
+              <button onClick={() => setStep(1)} style={{
+                marginLeft: 'auto', background: 'none', border: 'none',
+                color: '#3b82f6', fontSize: 11, cursor: 'pointer', textDecoration: 'underline',
+              }}>
+                Cambia
+              </button>
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
@@ -233,8 +342,7 @@ export default function Onboarding({ onProceed, onLogin }) {
                   style={{
                     width: '100%', padding: '11px 14px', borderRadius: 9,
                     background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-strong)',
-                    color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 14,
-                    outline: 'none',
+                    color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 14, outline: 'none',
                   }}
                 />
               </div>
@@ -250,8 +358,7 @@ export default function Onboarding({ onProceed, onLogin }) {
                   style={{
                     width: '100%', padding: '11px 14px', borderRadius: 9,
                     background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-strong)',
-                    color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 14,
-                    outline: 'none',
+                    color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 14, outline: 'none',
                   }}
                 />
               </div>
@@ -280,10 +387,11 @@ export default function Onboarding({ onProceed, onLogin }) {
               </button>
             </div>
           </div>
-          <button onClick={() => setStep(0)} style={{
-            marginTop: 16, background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: 13, cursor: 'pointer',
+          <button onClick={() => setStep(1)} style={{
+            marginTop: 16, background: 'none', border: 'none',
+            color: 'var(--text-faint)', fontSize: 13, cursor: 'pointer',
           }}>
-            ← Torna alla guida
+            ← Torna alla scelta scenario
           </button>
         </div>
       )}

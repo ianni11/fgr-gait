@@ -103,6 +103,7 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
 
     // Calcola laterality score e passalo al sampler
     const lateralityScore = lm ? computeLaterality(lm) : 0;
+    if (Math.random() < 0.05) console.log('laterality:', lateralityScore.toFixed(3));
     sampler.onFrame(computed, () => mp.captureFrame(video, canvas), lateralityScore);
 
     if (computed.length > 0) {

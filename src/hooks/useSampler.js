@@ -24,11 +24,13 @@ export function useSampler() {
 
   // Preset corrente
   const presetRef           = useRef(DEFAULT_PRESET);
+  // Persona per cui si registra (modalità allenatore) — null = sessione personale
+  const targetRef           = useRef(null);
 
   const [isRecording, setIsRecording]   = useState(false);
   const [lateralCount, setLateralCount] = useState(0);
 
-  const startRecording = useCallback((preset = DEFAULT_PRESET) => {
+  const startRecording = useCallback((preset = DEFAULT_PRESET, target = null) => {
     lateralFramesRef.current    = [];
     frameUrlsRef.current        = [];
     frameAnglesRef.current      = [];
@@ -39,6 +41,7 @@ export function useSampler() {
     framesReceivedRef.current   = 0;
     framesAcceptedRef.current   = 0;
     presetRef.current           = preset;
+    targetRef.current           = target;
     setLateralCount(0);
     isRecordingRef.current = true;
     setIsRecording(true);
@@ -135,6 +138,7 @@ export function useSampler() {
       frameAngles:     frameAnglesRef.current,
       durationSeconds,
       generatedAt:     new Date().toISOString(),
+      target:          targetRef.current, // { tipo: 'socio'|'prospetto', id, nome, cognome } | null = sessione personale
       quality: {
         framesReceived:  totalFrames,
         framesAccepted:  acceptedFrames,

@@ -4,6 +4,7 @@ import { drawSkeleton } from '../utils/drawSkeleton.js';
 import { useMediaPipe } from '../hooks/useMediaPipe.js';
 import { useSampler } from '../hooks/useSampler.js';
 import AngleChart from './AngleChart.jsx';
+import CoachQueue from './CoachQueue.jsx';
 
 const STATUS_COLOR = { ok: '#22c55e', warn: '#eab308', bad: '#ef4444' };
 const STATUS_LABEL = { ok: '✓', warn: '⚠', bad: '✗' };
@@ -71,12 +72,15 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
   const [timeline, setTimeline] = useState([]);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [facingMode, setFacingMode] = useState('environment');
+  const [coachTarget, setCoachTarget] = useState(null); // { tipo, id, nome, cognome } — modalità allenatore
+  const [showCoachQueue, setShowCoachQueue] = useState(false);
   const elapsedRef = useRef(null);
 
   const mp = useMediaPipe();
   const sampler = useSampler();
 
   const isLoggedIn = !!user && !!sessionStorage.getItem('fgr_token');
+  const isCoach = isLoggedIn && !!user?.isAdmin;
 
   const handlePoseResults = useCallback((results) => {
     const lm = results.poseLandmarks;
@@ -157,10 +161,11 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
     sampler.stopRecording();
     clearInterval(elapsedRef.current);
     setMode(null); setAngles([]); setTracking(false); setVideoReady(false); setTimeline([]);
+    setCoachTarget(null);
   };
 
   const startRecording = () => {
-    sampler.startRecording(preset);
+    sampler.startRecording(preset, coachTarget);
     setTimeline([]);
     setElapsedSec(0);
     clearInterval(elapsedRef.current);
@@ -362,6 +367,50 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
                 </div>
                 <span style={{ color: 'var(--text-faint)', fontSize: 18 }}>›</span>
               </div>
+            )}
+
+            {/* Modalità allenatore */}
+            {isCoach && !mp.loading && (
+              <div style={{ maxWidth: 640, margin: '12px auto 0' }}>
+                {coachTarget ? (
+                  <div style={{
+                    background: 'rgba(234,88,12,0.06)', border: '1px solid rgba(234,88,12,0.25)',
+                    borderRadius: 'var(--radius)', padding: '12px 16px',
+                    display: 'flex', alignItems: 'center', gap: 12,
+                  }}>
+                    <span style={{ fontSize: 18 }}>🎯</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 1 }}>
+                        Registrando per ({coachTarget.tipo === 'socio' ? 'socio' : 'prospetto'})
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{coachTarget.nome} {coachTarget.cognome}</div>
+                    </div>
+                    <button onClick={() => setCoachTarget(null)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', borderRadius: 7, padding: '5px 10px', fontSize: 11, cursor: 'pointer' }}>
+                      Cambia
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setShowCoachQueue(true)} style={{
+                    width: '100%', background: 'rgba(234,88,12,0.06)', border: '1px solid rgba(234,88,12,0.25)',
+                    borderRadius: 'var(--radius)', padding: '12px 16px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 12, color: 'var(--text)',
+                  }}>
+                    <span style={{ fontSize: 18 }}>🎯</span>
+                    <div style={{ flex: 1, textAlign: 'left' }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>Modalità Allenatore</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Scegli per chi registrare la sessione (coda o ricerca)</div>
+                    </div>
+                    <span style={{ color: 'var(--text-faint)', fontSize: 18 }}>›</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {showCoachQueue && (
+              <CoachQueue
+                onClose={() => setShowCoachQueue(false)}
+                onSelect={(p) => { setCoachTarget(p); setShowCoachQueue(false); }}
+              />
             )}
 
             {/* Features */}

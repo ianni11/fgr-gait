@@ -96,6 +96,12 @@ export default function App() {
           session_stats:    reportData.stats,
           timeline:         reportData.timeline,
           generated_at:     reportData.generatedAt,
+          // Modalità allenatore: registra per un'altra persona invece che per sé
+          // stessi. Il backend verifica comunque che chi chiama sia is_admin.
+          ...(reportData.target ? {
+            target_tipo: reportData.target.tipo,
+            target_id:   reportData.target.id,
+          } : {}),
         }),
       })
       .then(res => res.json())

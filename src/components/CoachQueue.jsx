@@ -39,6 +39,27 @@ export default function CoachQueue({ onSelect, onClose }) {
     return () => clearTimeout(t);
   }, [q, cerca]);
 
+  const rimuovi = useCallback(async (p) => {
+    if (!window.confirm(`Rimuovere ${p.nome} ${p.cognome} dalla coda? Possibile solo se non ha ancora fatto il test.`)) return;
+    const token = sessionStorage.getItem('fgr_token');
+    if (!token) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE}/gait_prospetti_rimuovi.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: p.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRisultati(prev => prev.filter(r => !(r.tipo === p.tipo && r.id === p.id)));
+      } else {
+        alert(data.message || 'Impossibile rimuovere');
+      }
+    } catch {
+      alert('Errore di connessione');
+    }
+  }, []);
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(6,9,18,0.92)',
@@ -77,28 +98,51 @@ export default function CoachQueue({ onSelect, onClose }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {risultati.map(p => (
-            <button
+            <div
               key={`${p.tipo}-${p.id}`}
-              onClick={() => onSelect(p)}
               style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                display: 'flex', alignItems: 'center', gap: 8,
                 background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)',
-                borderRadius: 10, padding: '12px 14px', cursor: 'pointer', textAlign: 'left',
+                borderRadius: 10, padding: '12px 14px',
               }}
             >
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{p.nome} {p.cognome}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.contatto}</div>
-              </div>
+              <button
+                onClick={() => onSelect(p)}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, minWidth: 0,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{p.nome} {p.cognome}</span>
+                    {p.minorenne && (
+                      <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 5, background: 'rgba(234,179,8,0.15)', color: '#eab308' }}>
+                        🔞 Minorenne
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.contatto}</div>
+                </div>
+              </button>
               <span style={{
                 fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em',
-                padding: '3px 8px', borderRadius: 6,
+                padding: '3px 8px', borderRadius: 6, flexShrink: 0,
                 background: p.tipo === 'socio' ? 'rgba(34,197,94,0.12)' : 'rgba(59,130,246,0.12)',
                 color: p.tipo === 'socio' ? '#22c55e' : '#3b82f6',
               }}>
                 {p.tipo === 'socio' ? 'Socio' : 'Prospetto'}
               </span>
-            </button>
+              {p.tipo === 'prospetto' && (
+                <button
+                  onClick={() => rimuovi(p)}
+                  title="Rimuovi dalla coda"
+                  style={{ flexShrink: 0, background: 'none', border: '1px solid var(--border)', color: 'var(--text-faint)', borderRadius: 6, padding: '4px 8px', fontSize: 13, cursor: 'pointer' }}
+                >
+                  🗑
+                </button>
+              )}
+            </div>
           ))}
         </div>
       </div>

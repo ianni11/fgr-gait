@@ -204,6 +204,14 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
               FGR <span style={{ color: '#EA580C' }}>·</span> GAIT
             </span>
           </div>
+          {coachTarget && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(234,88,12,0.1)', border: '1px solid rgba(234,88,12,0.3)', borderRadius: 6, padding: '3px 10px' }}>
+              <span style={{ fontSize: 13 }}>🎯</span>
+              <span style={{ fontSize: 11, color: '#EA580C', fontFamily: 'var(--font-mono)' }}>
+                {coachTarget.tipo === 'socio' ? 'Socio' : 'Prospetto'}: {coachTarget.nome} {coachTarget.cognome}
+              </span>
+            </div>
+          )}
           {tracking && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 8 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', animation: 'pulse 1.4s infinite' }}/>

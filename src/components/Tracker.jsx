@@ -405,7 +405,7 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
                 )}
               </div>
 
-              {tracking && (
+              {videoReady && (
                 <div style={{
                   display: 'flex', gap: 10,
                   position: 'sticky', bottom: 0, zIndex: 90,

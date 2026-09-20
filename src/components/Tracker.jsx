@@ -189,9 +189,10 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
       <div style={{
         padding: '14px 20px', borderBottom: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexWrap: 'wrap', rowGap: 8,
         background: 'rgba(6,9,18,0.95)', position: 'sticky', top: 0, zIndex: 100, backdropFilter: 'blur(12px)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', rowGap: 6 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1E40AF', boxShadow: '0 0 8px #1E40AF' }}/>
             <span style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 16, letterSpacing: '0.08em' }}>
@@ -215,7 +216,7 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
         </div>
 
         {/* Destra header */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', rowGap: 8 }}>
           {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
@@ -293,7 +294,7 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
             )}
 
             {!mp.loading && (
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, maxWidth: 640, margin: '0 auto' }}>
+              <div className="gait-mode-grid">
                 <label style={{
                   background: 'rgba(30,64,175,0.06)', border: '1px solid rgba(59,130,246,0.3)',
                   borderRadius: 'var(--radius-lg)', padding: '32px 24px', cursor: 'pointer',
@@ -364,7 +365,7 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
             )}
 
             {/* Features */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, maxWidth: 640, margin: '24px auto 0' }}>
+            <div className="gait-features-grid">
               {[['🦴','33 keypoint','Corpo completo'],['📊','Media + SD','Distribuzione statistica'],['📸','5 frame','Auto-catturati']].map(([ic,t,d])=>(
                 <div key={t} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px', textAlign: 'center' }}>
                   <div style={{ fontSize: 20, marginBottom: 5 }}>{ic}</div>
@@ -378,7 +379,7 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
 
         {/* Tracker layout */}
         {mode && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 16 }}>
+          <div className="gait-tracker-layout">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ position: 'relative', borderRadius: 'var(--radius)', overflow: 'hidden', background: '#000', border: '1px solid var(--border)', aspectRatio: '16/9' }}>
                 <video ref={videoRef} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>
@@ -440,9 +441,9 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
             </div>
 
             <div>
-              <div style={{
+              <div className="gait-angle-panel" style={{
                 background: 'var(--bg-card)', border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)', overflow: 'hidden', position: 'sticky', top: 70,
+                borderRadius: 'var(--radius)', overflow: 'hidden',
               }}>
                 <div style={{ padding: '11px 14px', borderBottom: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 600 }}>

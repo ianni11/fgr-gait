@@ -59,3 +59,46 @@ body {
 .stagger > *:nth-child(7) { animation-delay: 360ms; }
 
 button { font-family: var(--font-body); cursor: pointer; }
+
+/* ── Responsive layout overrides (mobile: schermi stretti tipo smartphone) ── */
+
+.gait-mode-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.gait-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 640px;
+  margin: 24px auto 0;
+}
+
+.gait-tracker-layout {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 16px;
+}
+
+.gait-angle-panel {
+  position: sticky;
+  top: 70px;
+}
+
+@media (max-width: 640px) {
+  .gait-mode-grid { grid-template-columns: 1fr; }
+  .gait-features-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .gait-tracker-layout { grid-template-columns: 1fr; }
+  .gait-angle-panel { position: static; top: auto; }
+}
+
+@media (max-width: 420px) {
+  .gait-features-grid { grid-template-columns: 1fr; }
+}

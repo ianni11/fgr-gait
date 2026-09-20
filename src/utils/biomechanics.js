@@ -53,14 +53,36 @@ export const LATERALITY_PRESETS = [
 export const DEFAULT_PRESET = LATERALITY_PRESETS[0];
 
 // ── Angle definitions ──────────────────────────────────────────────────────
+// `rom` = escursione articolare (Range Of Motion) attesa su un INTERO ciclo di
+// corsa amatoriale/ricreativa a ritmo medio-facile (non sprint, non elite),
+// nella convenzione "angolo interno al vertice" usata da angleBetween() (180°
+// = segmenti allineati/gamba dritta), NON nella convenzione clinica di
+// "gradi di flessione" (che parte da 0=esteso) — le fonti cliniche sono state
+// convertite. rom[0] = valore raggiunto in massima flessione (oscillazione),
+// rom[1] = valore raggiunto in massima estensione (appoggio/spinta).
+// `ideal`/`warn` restano per la SOLA colorazione istantanea in tempo reale
+// (Tracker.jsx): segnalano se l'angolo del frame corrente è dentro un range
+// fisiologicamente plausibile, non "se la tua forma in questo istante è
+// buona" — durante la corsa il ginocchio è spesso piegato ed è normale.
+// Il punteggio di sessione (sessionScore) usa invece `rom` confrontato con
+// min/max realmente raggiunti nella sessione, non l'angolo istantaneo.
+//
+// Fonti (ricerca 2026-09-20, con lacune segnalate esplicitamente):
+// - Ginocchio: Novacheck 1998, "The biomechanics of running" — buona affidabilità.
+// - Anca: valore di flessione massima in oscillazione STIMATO, fonti divergenti (27-50° clinici).
+// - Caviglia: valore di dorsiflessione con fonti discordanti (10-20° vs 20-50° clinici).
+// - Busto: letteratura su inclinazione tronco in corsa (4-8° ottimale, fino ~15° ricreativo);
+//   NOTA: il vecchio range [75,95] era un bug geometrico — con vertice alla spalla e testa
+//   allineata al tronco, un busto quasi dritto dà un angolo vicino a 180°, non 90°.
 export const ANGLE_DEFS = [
   {
     key: 'knee_l',
     name: 'Ginocchio SX',
     short: 'GIN SX',
     joints: [KP.L_HIP, KP.L_KNEE, KP.L_ANKLE],
-    ideal: [155, 175],
-    warn:  [140, 185],
+    rom:   [55, 178],
+    ideal: [55, 178],
+    warn:  [40, 183],
     color: '#a78bfa',
   },
   {
@@ -68,8 +90,9 @@ export const ANGLE_DEFS = [
     name: 'Ginocchio DX',
     short: 'GIN DX',
     joints: [KP.R_HIP, KP.R_KNEE, KP.R_ANKLE],
-    ideal: [155, 175],
-    warn:  [140, 185],
+    rom:   [55, 178],
+    ideal: [55, 178],
+    warn:  [40, 183],
     color: '#818cf8',
   },
   {
@@ -77,8 +100,9 @@ export const ANGLE_DEFS = [
     name: 'Anca SX',
     short: 'ANCA SX',
     joints: [KP.L_SHOULDER, KP.L_HIP, KP.L_KNEE],
-    ideal: [160, 180],
-    warn:  [145, 185],
+    rom:   [130, 180],   // minimo stimato, da ritarare con dati reali (test-retest)
+    ideal: [130, 180],
+    warn:  [115, 185],
     color: '#34d399',
   },
   {
@@ -86,8 +110,9 @@ export const ANGLE_DEFS = [
     name: 'Anca DX',
     short: 'ANCA DX',
     joints: [KP.R_SHOULDER, KP.R_HIP, KP.R_KNEE],
-    ideal: [160, 180],
-    warn:  [145, 185],
+    rom:   [130, 180],
+    ideal: [130, 180],
+    warn:  [115, 185],
     color: '#2dd4bf',
   },
   {
@@ -95,8 +120,9 @@ export const ANGLE_DEFS = [
     name: 'Caviglia SX',
     short: 'CAV SX',
     joints: [KP.L_KNEE, KP.L_ANKLE, KP.L_FOOT],
-    ideal: [80, 110],
-    warn:  [65, 125],
+    rom:   [70, 118],    // dorsiflessione con fonti discordanti, da ritarare
+    ideal: [70, 118],
+    warn:  [55, 128],
     color: '#fbbf24',
   },
   {
@@ -104,8 +130,9 @@ export const ANGLE_DEFS = [
     name: 'Caviglia DX',
     short: 'CAV DX',
     joints: [KP.R_KNEE, KP.R_ANKLE, KP.R_FOOT],
-    ideal: [80, 110],
-    warn:  [65, 125],
+    rom:   [70, 118],
+    ideal: [70, 118],
+    warn:  [55, 128],
     color: '#fb923c',
   },
   {
@@ -113,8 +140,9 @@ export const ANGLE_DEFS = [
     name: 'Busto',
     short: 'BUSTO',
     joints: [KP.L_HIP, KP.L_SHOULDER, KP.NOSE],
-    ideal: [75, 95],
-    warn:  [65, 105],
+    rom:   [160, 180],   // corretto: bug geometrico nel range precedente [75,95]
+    ideal: [160, 180],
+    warn:  [148, 183],
     color: '#f472b6',
   },
 ];
@@ -190,6 +218,44 @@ export function angleStatus(def, deg) {
   return 'bad';
 }
 
+// ── Valutazione basata sull'escursione articolare (ROM) raggiunta ──────────
+// Sostituisce il vecchio confronto "media vs fascia stretta", che puniva la
+// normale variazione dell'angolo durante il ciclo del passo (che varia
+// naturalmente ad ogni falcata, non è "rumore"). Qui si valuta quanto il
+// minimo e il massimo raggiunti nella sessione si avvicinano all'escursione
+// naturale attesa (def.rom): un range più stretto di quello atteso indica
+// un passo con poca escursione articolare (es. andatura "raschiata"), non
+// necessariamente un problema di misura.
+// Punti persi per grado di scarto dall'escursione attesa. Valore prudente:
+// alcuni target (in particolare la flessione massima del ginocchio in
+// oscillazione, e in parte quella dell'anca/caviglia) sono stime da fonti
+// non del tutto consolidate per un ritmo amatoriale facile — meglio una
+// penalità morbida finché non si valida con sessioni reali ripetute
+// (test-retest) quanto questi target siano calibrati bene.
+const DEG_PENALTY_PER_UNIT = 1.5;
+
+export function romGapDeg(def, stat) {
+  if (!stat) return null;
+  const [romMin, romMax] = def.rom;
+  const flexionGap   = Math.max(0, stat.min - romMin); // hai flesso meno del previsto
+  const extensionGap = Math.max(0, romMax - stat.max); // non hai esteso abbastanza
+  return flexionGap + extensionGap;
+}
+
+export function romScore(def, stat) {
+  const gap = romGapDeg(def, stat);
+  if (gap === null) return null;
+  return Math.max(0, Math.round(100 - gap * DEG_PENALTY_PER_UNIT));
+}
+
+export function romStatus(def, stat) {
+  const score = romScore(def, stat);
+  if (score === null) return 'bad';
+  if (score >= 75) return 'ok';
+  if (score >= 45) return 'warn';
+  return 'bad';
+}
+
 // ── Statistics ────────────────────────────────────────────────────────────
 export function computeStats(samples) {
   const byKey = {};
@@ -215,7 +281,7 @@ export function computeStats(samples) {
       max:  Math.max(...vals),
       count: vals.length,
       values: vals,
-      status: angleStatus(def, mean),
+      status: romStatus(def, { min: Math.min(...vals), max: Math.max(...vals) }),
     };
   });
   return stats;
@@ -235,17 +301,10 @@ export function pickBestFrameIndex(samples, stats) {
   return bestIdx;
 }
 
-// Score pesato sulla SD
+// Punteggio medio delle escursioni articolari (vedi romScore sopra) —
+// non penalizza più la SD, che nella corsa è normale, non rumore.
 export function sessionScore(stats) {
-  const vals = ANGLE_DEFS.map(d => {
-    const s = stats[d.key];
-    if (!s) return null;
-    const st = angleStatus(d, s.mean);
-    let base = st === 'ok' ? 100 : st === 'warn' ? 55 : 15;
-    // Penalità SD: ideale < 8°, massima penalità a SD > 20°
-    const sdPenalty = Math.min(20, Math.max(0, (s.sd - 8) * (20 / 12)));
-    return Math.max(0, base - sdPenalty);
-  }).filter(v => v !== null);
+  const vals = ANGLE_DEFS.map(d => romScore(d, stats[d.key])).filter(v => v !== null);
   if (vals.length === 0) return 0;
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }

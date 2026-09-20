@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ANGLE_DEFS, angleStatus } from '../utils/biomechanics.js';
+import { ANGLE_DEFS, angleStatus, romStatus } from '../utils/biomechanics.js';
 
 const STATUS_COLOR = { ok: '#22c55e', warn: '#eab308', bad: '#ef4444' };
 const STATUS_LABEL = { ok: 'Ideale', warn: 'Attenzione', bad: 'Critico' };
@@ -37,14 +37,14 @@ function ScoreRing({ value, size = 120 }) {
 
 function AngleStatRow({ def, stat }) {
   if (!stat) return null;
-  const st = angleStatus(def, stat.mean);
+  const st = romStatus(def, stat);
   const col = STATUS_COLOR[st];
   const warnSpan = def.warn[1] - def.warn[0];
-  const idealLeft  = ((def.ideal[0] - def.warn[0]) / warnSpan) * 100;
-  const idealWidth = ((def.ideal[1] - def.ideal[0]) / warnSpan) * 100;
-  const meanPct = Math.max(0, Math.min(100, ((stat.mean - def.warn[0]) / warnSpan) * 100));
-  const sdLeft  = Math.max(0, ((stat.mean - stat.sd - def.warn[0]) / warnSpan) * 100);
-  const sdWidth = Math.min(100, (stat.sd * 2 / warnSpan) * 100);
+  const romLeft  = ((def.rom[0] - def.warn[0]) / warnSpan) * 100;
+  const romWidth = ((def.rom[1] - def.rom[0]) / warnSpan) * 100;
+  const achievedLeft  = Math.max(0, Math.min(100, ((stat.min - def.warn[0]) / warnSpan) * 100));
+  const achievedRight = Math.max(0, Math.min(100, ((stat.max - def.warn[0]) / warnSpan) * 100));
+  const achievedWidth = Math.max(0, achievedRight - achievedLeft);
   return (
     <div style={{ background: STATUS_BG[st], border: `1px solid ${col}22`, borderLeft: `3px solid ${col}`, borderRadius: '0 10px 10px 0', padding: '14px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -53,33 +53,32 @@ function AngleStatRow({ def, stat }) {
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{STATUS_LABEL[st]} · {stat.count} campioni</div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 22, color: col, lineHeight: 1 }}>{stat.mean}°</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>±{stat.sd}° SD</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 22, color: col, lineHeight: 1 }}>{stat.min}°–{stat.max}°</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>escursione raggiunta</div>
         </div>
       </div>
       <div style={{ position: 'relative', height: 20, borderRadius: 4, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', left: `${idealLeft}%`, width: `${idealWidth}%`, top: 0, height: '100%', background: 'rgba(34,197,94,0.15)', borderLeft: '1px solid rgba(34,197,94,0.3)', borderRight: '1px solid rgba(34,197,94,0.3)' }}/>
-        <div style={{ position: 'absolute', left: `${sdLeft}%`, width: `${sdWidth}%`, top: '25%', height: '50%', background: `${col}33`, borderRadius: 2 }}/>
-        <div style={{ position: 'absolute', left: `${meanPct}%`, top: 0, width: 2, height: '100%', background: col, transform: 'translateX(-50%)', boxShadow: `0 0 6px ${col}` }}/>
+        <div style={{ position: 'absolute', left: `${romLeft}%`, width: `${romWidth}%`, top: 0, height: '100%', background: 'rgba(34,197,94,0.15)', borderLeft: '1px solid rgba(34,197,94,0.3)', borderRight: '1px solid rgba(34,197,94,0.3)' }}/>
+        <div style={{ position: 'absolute', left: `${achievedLeft}%`, width: `${achievedWidth}%`, top: '25%', height: '50%', background: col, opacity: 0.55, borderRadius: 2, boxShadow: `0 0 6px ${col}88` }}/>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text-faint)' }}>
         <span>{def.warn[0]}°</span>
-        <span style={{ color: 'rgba(34,197,94,0.5)' }}>▏{def.ideal[0]}°–{def.ideal[1]}°▕ ideale</span>
+        <span style={{ color: 'rgba(34,197,94,0.5)' }}>▏{def.rom[0]}°–{def.rom[1]}°▕ escursione attesa</span>
         <span>{def.warn[1]}°</span>
       </div>
       <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
         <span style={{ color: 'var(--text-muted)' }}>min <strong style={{ color: def.color }}>{stat.min}°</strong></span>
         <span style={{ color: 'var(--text-muted)' }}>max <strong style={{ color: def.color }}>{stat.max}°</strong></span>
-        <span style={{ color: 'var(--text-muted)' }}>range <strong style={{ color: 'var(--text)' }}>{stat.max - stat.min}°</strong></span>
+        <span style={{ color: 'var(--text-muted)' }}>media <strong style={{ color: 'var(--text)' }}>{stat.mean}°</strong> (±{stat.sd}° variabilità)</span>
       </div>
     </div>
   );
 }
 
 function CriticalityBadge({ stats }) {
-  const critical = ANGLE_DEFS.filter(d => { const s = stats[d.key]; return s && angleStatus(d, s.mean) === 'bad'; });
-  const warnings = ANGLE_DEFS.filter(d => { const s = stats[d.key]; return s && angleStatus(d, s.mean) === 'warn'; });
-  const ok       = ANGLE_DEFS.filter(d => { const s = stats[d.key]; return s && angleStatus(d, s.mean) === 'ok'; });
+  const critical = ANGLE_DEFS.filter(d => { const s = stats[d.key]; return s && romStatus(d, s) === 'bad'; });
+  const warnings = ANGLE_DEFS.filter(d => { const s = stats[d.key]; return s && romStatus(d, s) === 'warn'; });
+  const ok       = ANGLE_DEFS.filter(d => { const s = stats[d.key]; return s && romStatus(d, s) === 'ok'; });
   return (
     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
       {ok.length > 0 && <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, padding: '6px 14px', fontSize: 12, color: '#22c55e', fontFamily: 'var(--font-mono)' }}>✓ {ok.length} ideali</div>}
@@ -198,7 +197,7 @@ function HistoricReport({ session, user, onBack }) {
       {activeTab === 'stats' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: 10, padding: '14px 18px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7 }}>
-            La linea centrale è la <strong style={{color:'var(--text)'}}>media (μ)</strong>, la banda colorata è la <strong style={{color:'var(--text)'}}>deviazione standard (±σ)</strong>.
+            La zona verde è l'<strong style={{color:'var(--text)'}}>escursione naturale attesa</strong> durante un ciclo di corsa. La barra piena è il <strong style={{color:'var(--text)'}}>range che hai davvero raggiunto</strong> (dal minimo al massimo) in questa sessione — più si sovrappone alla zona verde, meglio è.
           </div>
           {ANGLE_DEFS.map(def => <AngleStatRow key={def.key} def={def} stat={stats[def.key]} />)}
         </div>
@@ -428,7 +427,7 @@ export default function SessionReport({ report, user, initialTab = 'stats', onNe
         {activeTab === 'stats' && (
           <div className="fade-up stagger" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: 10, padding: '14px 18px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7 }}>
-              La barra mostra la distribuzione degli angoli nel range di riferimento. La linea centrale è la <strong style={{color:'var(--text)'}}>media (μ)</strong>, la banda colorata è la <strong style={{color:'var(--text)'}}>deviazione standard (±σ)</strong> — più è stretta, più la tua corsa è consistente.
+              La zona verde è l'<strong style={{color:'var(--text)'}}>escursione naturale attesa</strong> durante un ciclo di corsa. La barra piena è il <strong style={{color:'var(--text)'}}>range che hai davvero raggiunto</strong> (dal minimo al massimo) — più si sovrappone alla zona verde, meglio è: un range più stretto indica un'escursione articolare ridotta rispetto all'atteso.
             </div>
             {ANGLE_DEFS.map(def => <div key={def.key} className="fade-up"><AngleStatRow def={def} stat={stats[def.key]} /></div>)}
           </div>

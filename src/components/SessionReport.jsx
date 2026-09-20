@@ -292,7 +292,7 @@ export default function SessionReport({ report, user, initialTab = 'stats', onNe
   // ── Storia mode: schermata dedicata ─────────────────────────────────────────
   if (isHistoryMode) {
     return (
-      <div style={{ minHeight: '100vh', padding: '24px 16px 60px' }}>
+      <div className="screen-min-h" style={{ padding: '24px 16px 60px' }}>
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
 
           {/* Header */}
@@ -348,7 +348,7 @@ export default function SessionReport({ report, user, initialTab = 'stats', onNe
   });
 
   return (
-    <div style={{ minHeight: '100vh', padding: '24px 16px 60px' }}>
+    <div className="screen-min-h" style={{ padding: '24px 16px 60px' }}>
       <div style={{ maxWidth: 860, margin: '0 auto' }}>
 
         {/* Header */}

@@ -103,7 +103,7 @@ export default function Onboarding({ onProceed, onLogin }) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px' }}>
+    <div className="screen-min-h" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px' }}>
 
       {/* Logo */}
       <div style={{ marginBottom: 40, textAlign: 'center' }}>

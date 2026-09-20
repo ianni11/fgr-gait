@@ -1,0 +1,19 @@
+{
+  "name": "FGR · GAIT Analysis",
+  "short_name": "FGR GAIT",
+  "description": "Analisi biomeccanica della corsa per ASD Foggia Running",
+  "start_url": "/fgr-gait/",
+  "scope": "/fgr-gait/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#060912",
+  "theme_color": "#060912",
+  "icons": [
+    {
+      "src": "/fgr-gait/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

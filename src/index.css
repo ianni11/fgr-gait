@@ -60,6 +60,15 @@ body {
 
 button { font-family: var(--font-body); cursor: pointer; }
 
+/* 100vh sui browser mobile non tiene conto della barra indirizzi che si
+   nasconde/mostra scrollando: usa 100dvh (viewport "dinamica") quando
+   supportata, altrimenti resta 100vh. Evita che i pulsanti in fondo alla
+   pagina restino nascosti sotto il fold su Chrome/Safari mobile. */
+.screen-min-h {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 /* ── Responsive layout overrides (mobile: schermi stretti tipo smartphone) ── */
 
 .gait-mode-grid {

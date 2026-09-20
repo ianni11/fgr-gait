@@ -184,7 +184,7 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
   const formatTime = (s) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 
   return (
-    <div style={{ minHeight: '100vh' }}>
+    <div className="screen-min-h">
       {/* Header */}
       <div style={{
         padding: '14px 20px', borderBottom: '1px solid var(--border)',
@@ -406,7 +406,12 @@ export default function Tracker({ user, preset, onReportReady, onShowHistory, on
               </div>
 
               {tracking && (
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{
+                  display: 'flex', gap: 10,
+                  position: 'sticky', bottom: 0, zIndex: 90,
+                  padding: '10px 0',
+                  background: 'linear-gradient(180deg, transparent, rgba(6,9,18,0.94) 30%)',
+                }}>
                   {!sampler.isRecording ? (
                     <button onClick={startRecording} style={{
                       flex: 1, padding: '13px', borderRadius: 'var(--radius)',
